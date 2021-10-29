@@ -1,7 +1,5 @@
 /*
- * Copyright IBM Corp. All Rights Reserved.
- *
- * SPDX-License-Identifier: Apache-2.0
+SPDX-License-Identifier: Apache-2.0
 */
 
 'use strict';
@@ -14,7 +12,7 @@ const CommercialPaper = require('./paper.js');
 class PaperList extends StateList {
 
     constructor(ctx) {
-        super(ctx, 'org.papernet.paper');
+        super(ctx, 'org.papernet.commercialpaperlist');
         this.use(CommercialPaper);
     }
 

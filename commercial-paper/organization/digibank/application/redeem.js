@@ -1,7 +1,5 @@
 /*
- * Copyright IBM Corp. All Rights Reserved.
- *
- * SPDX-License-Identifier: Apache-2.0
+SPDX-License-Identifier: Apache-2.0
 */
 
 /*
@@ -19,16 +17,14 @@
 // Bring key classes into scope, most importantly Fabric SDK network class
 const fs = require('fs');
 const yaml = require('js-yaml');
-const { Wallets, Gateway } = require('fabric-network');
+const { FileSystemWallet, Gateway } = require('fabric-network');
 const CommercialPaper = require('../contract/lib/paper.js');
 
+// A wallet stores a collection of identities for use
+const wallet = new FileSystemWallet('../identity/user/balaji/wallet');
 
 // Main program function
 async function main() {
-
-  // A wallet stores a collection of identities for use
-  const wallet = await Wallets.newFileSystemWallet('../identity/user/balaji/wallet');
-
 
   // A gateway defines the peers used to access Fabric networks
   const gateway = new Gateway();
@@ -37,17 +33,17 @@ async function main() {
   try {
 
     // Specify userName for network access
-        // Specify userName for network access
-        const userName = 'balaji';
+    // const userName = 'isabella.issuer@magnetocorp.com';
+    const userName = 'Admin@org1.example.com';
 
     // Load connection profile; will be used to locate a gateway
-    let connectionProfile = yaml.safeLoad(fs.readFileSync('../gateway/connection-org1.yaml', 'utf8'));
+    let connectionProfile = yaml.safeLoad(fs.readFileSync('../gateway/networkConnection.yaml', 'utf8'));
 
     // Set connection options; identity and wallet
     let connectionOptions = {
       identity: userName,
       wallet: wallet,
-      discovery: { enabled:true, asLocalhost: true }
+      discovery: { enabled:false, asLocalhost: true }
     };
 
     // Connect to gateway using application specified parameters
@@ -68,7 +64,7 @@ async function main() {
     // redeem commercial paper
     console.log('Submit commercial paper redeem transaction.');
 
-    const redeemResponse = await contract.submitTransaction('redeem', 'MagnetoCorp', '00001', 'DigiBank', 'Org2MSP', '2020-11-30');
+    const redeemResponse = await contract.submitTransaction('redeem', 'MagnetoCorp', '00001', 'DigiBank', '2020-11-30');
 
     // process response
     console.log('Process redeem transaction response.');
@@ -76,7 +72,6 @@ async function main() {
     let paper = CommercialPaper.fromBuffer(redeemResponse);
 
     console.log(`${paper.issuer} commercial paper : ${paper.paperNumber} successfully redeemed with ${paper.owner}`);
-
     console.log('Transaction complete.');
 
   } catch (error) {
