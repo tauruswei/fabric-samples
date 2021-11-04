@@ -6,10 +6,7 @@ This sample provides an introduction to how to use external builder and launcher
 
 ## Setting up the external builder and launcher
 
-External Builders and Launchers is an advanced feature that typically requires custom packaging of the peer image so that it contains all the tools your builder and launcher require. For this sample we use very simple (and crude) shell scripts that can be run directly within the default Fabric peer images.
-
-Open the `config/core.yaml` file at the top of the `fabric-samples` hierarchy. Note that this file comes along with the Fabric binaries, so if you don't have it, follow the [Install the Samples, Binaries and Docker Images](https://hyperledger-fabric.readthedocs.io/en/latest/install.html) instructions in the Hyperledger Fabric documentation to download the binaries and config files.
-
+Open the `config/core.yaml` file at the top of the `fabric-samples` hierarchy. 
 Modify the field `externalBuilders` as the following:
 ```
 externalBuilders:
@@ -37,13 +34,10 @@ The peer needs a corresponding `connection.json` configuration file so that it c
 
 The address specified in the `connection.json` must correspond to the `CHAINCODE_SERVER_ADDRESS` value in `chaincode.env`, which is `asset-transfer-basic.org1.example.com:9999` in our example.
 
-Because we will run our chaincode as an external service, the chaincode itself does not need to be included in the chaincode
-package that gets installed to each peer. Only the configuration and metadata information needs to be included
-in the package. Since the packaging is trivial, we can manually create the chaincode package.
-
 First, create a `code.tar.gz` archive containing the `connection.json` file:
 
 ```
+cd fabric-samples/asset-transfer-basic/chaincode-external
 tar cfz code.tar.gz connection.json
 ```
 
@@ -55,11 +49,42 @@ tar cfz asset-transfer-basic-external.tgz metadata.json code.tar.gz
 
 You are now ready to use the external chaincode. We will use the `test-network` sample to get a network setup and make use of it.
 
+## 修改 test-network/configtx/configtx.yaml
+
+```
+Application: &ApplicationDefaults
+
+    # Organizations is the list of orgs which are defined as participants on
+    # the application side of the network
+    Organizations:
+
+    # Policies defines the set of policies at this level of the config tree
+    # For Application policies, their canonical path is
+    #   /Channel/Application/<PolicyName>
+    Policies:
+        Readers:
+            Type: ImplicitMeta
+            Rule: "ANY Readers"
+        Writers:
+            Type: ImplicitMeta
+            Rule: "ANY Writers"
+        Admins:
+            Type: ImplicitMeta
+            Rule: "ANY Admins"
+        LifecycleEndorsement:
+            Type: ImplicitMeta
+            Rule: "ANY Endorsement"
+        Endorsement:
+            Type: ImplicitMeta
+            Rule: "ANY Endorsement"
+```
+
 ## Starting the test network
 
 In a different terminal, from the `test-network` sample directory starts the network using the following command:
 
 ```
+cd fabric-samples/test-network
 ./network.sh up createChannel -c mychannel -ca
 ```
 
@@ -75,7 +100,7 @@ First, get the functions to setup your environment as needed by running the foll
 . ./scripts/envVar.sh
 ```
 
-Install the `asset-transfer-basic-external.tar.gz` chaincode on org1:
+安装 `asset-transfer-basic-external.tar.gz` chaincode on org1:
 
 ```
 setGlobals 1
@@ -84,40 +109,41 @@ setGlobals 1
 
 setGlobals simply defines a bunch of environment variables suitable to act as one organization or another, org1 or org2.
 
-Install it on org2:
+安装 `asset-transfer-basic-external.tar.gz` chaincode on org2:
 
 ```
 setGlobals 2
 ../bin/peer lifecycle chaincode install ../asset-transfer-basic/chaincode-external/asset-transfer-basic-external.tgz
 ```
 
-This will output the chaincode pakage identifier such as `basic_1.0:0262396ccaffaa2174bc09f750f742319c4f14d60b16334d2c8921b6842c090c` that you will need to use in the following commands.
+This will output the chaincode pakage identifier such as `basic_1.0:0262396ccaffaa2174bc09f750f742319c4f14d60b16334d2c8921b6842c090` that you will need to use in the following commands.
 
-For convenience it is best to store your package id value in an environment variable so that it can be referenced in later commands:
+新建环境变量 `PKGID=basic_1.0:0262396ccaffaa2174bc09f750f742319c4f14d60b16334d2c8921b6842c090`
 
 ```
 export PKGID=basic_1.0:0262396ccaffaa2174bc09f750f742319c4f14d60b16334d2c8921b6842c090
 ```
 
-If needed, you can query the installed chaincode to get its package-id:
+你也可以通过下面的命令查询 `package-id`:
 
 ```
 setGlobals 1
 ../bin/peer lifecycle chaincode queryinstalled --peerAddresses localhost:7051 --tlsRootCertFiles organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
 ```
 
-Edit the `chaincode.env` file in the `fabric-samples/asset-transfer-basic/chaincode-external` directory as necessary to set the `CHAINCODE_ID` variable to the chaincode package-id obtained above.
+切换到目录： `fabric-samples/asset-transfer-basic/chaincode-external` ,修改 `chaincode.env` ,set `CHAINCODE_ID` euqal to the
+ chaincode `package-id` obtained above.
 
 
 ## Running the Asset-Transfer-Basic external service
 
-To run the service in a container, from a different terminal, build an Asset-Transfer-Basic docker image, using the supplied `Dockerfile`, using the following command in the `fabric-samples/asset-transfer-basic/chaincode-external` directory:
+切换到 `fabric-samples/asset-transfer-basic/chaincode-external` 目录,编译合约镜像:
 
 ```
 docker build -t hyperledger/asset-transfer-basic .
 ```
 
-Then, start the Asset-Transfer-Basic service:
+启动合约容器:
 
 ```
 docker run -it --rm --name asset-transfer-basic.org1.example.com --hostname asset-transfer-basic.org1.example.com --env-file chaincode.env --network=net_test hyperledger/asset-transfer-basic
@@ -125,9 +151,8 @@ docker run -it --rm --name asset-transfer-basic.org1.example.com --hostname asse
 
 This will start the container and start the external chaincode service within it.
 
-## Finish deploying the Asset-Transfer-Basic external chaincode
+## 部署合约
 
-Finishing the deployment of the chaincode on the test network can be done from the terminal you started the network from with the following commands (make sure the package-id is set to the value you received above):
 
 ```
 setGlobals 2
@@ -150,12 +175,10 @@ Now that the chaincode is deployed to the channel, and started as an external se
 
 ## Using the Asset-Transfer-Basic external chaincode
 
-From yet another terminal, go to `fabric-samples/asset-transfer-basic/application-javascript` and use the node application to test the chaincode you just installed with the following commands:
+切换到 `fabric-samples/test-network` 目录，重新打开一个窗口，执行下面的命令
 
 ```
-rm -rf wallet # in case you ran this before
-npm install
-node app.js
+peer chaincode invoke -n basic -c '{"Args":["InitLedger"]}' -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel
+peer chaincode invoke -n basic -c '{"Args":["ReadAsset","asset1"]}' -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel
 ```
 
-If all goes well, it should run exactly the same as described in the "Writing Your First Application" tutorial.

@@ -229,6 +229,8 @@ func main() {
 		},
 	}
 
+	log.Println("success")
+
 	if err := server.Start(); err != nil {
 		log.Panicf("error starting asset-transfer-basic chaincode: %s", err)
 	}
