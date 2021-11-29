@@ -182,3 +182,9 @@ peer chaincode invoke -n basic -c '{"Args":["InitLedger"]}' -o localhost:7050 --
 peer chaincode invoke -n basic -c '{"Args":["ReadAsset","asset1"]}' -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel
 ```
 
+## 清理网络,防止有残留数据
+```
+bash network.sh down
+docker system prune
+docker volume rm $(docker volume ls -qf dangling=true)
+```
