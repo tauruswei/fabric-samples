@@ -6,8 +6,8 @@ This sample provides an introduction to how to use external builder and launcher
 
 ## Setting up the external builder and launcher
 
-Open the `config/core.yaml` file at the top of the `fabric-samples` hierarchy. 
-Modify the field `externalBuilders` as the following:
+打开 `fabric-samples/config/core.yaml` 
+修改 the field `externalBuilders` as the following:
 ```
 externalBuilders:
     - path: /opt/gopath/src/github.com/hyperledger/fabric-samples/asset-transfer-basic/chaincode-external/sampleBuilder
@@ -15,8 +15,8 @@ externalBuilders:
 ```
 This configuration sets the name of the external builder as `external-sample-builder`, and the path of the builder to the scripts provided in this sample. Note that this is the path within the peer container, not your local machine.
 
-To set the path within the peer container, you will need to modify the container compose file to mount a couple of additional volumes.
-Open the file `test-network/docker/docker-compose-test-net.yaml`, and add to the `volumes` section of both `peer0.org1.example.com` and `peer0.org2.example.com` the following two lines:
+打开 `test-network/docker/docker-compose-test-net.yaml`
+容器 `peer0.org1.example.com` 和 `peer0.org2.example.com` 新增如下两行挂载:
 
 ```
         - ../..:/opt/gopath/src/github.com/hyperledger/fabric-samples
@@ -103,6 +103,8 @@ First, get the functions to setup your environment as needed by running the foll
 安装 `asset-transfer-basic-external.tar.gz` chaincode on org1:
 
 ```
+export PATH=${PWD}/../bin:${PWD}:$PATH
+export FABRIC_CFG_PATH=$PWD/../config/
 setGlobals 1
 ../bin/peer lifecycle chaincode install ../asset-transfer-basic/chaincode-external/asset-transfer-basic-external.tgz
 ```
@@ -139,14 +141,20 @@ setGlobals 1
 
 切换到 `fabric-samples/asset-transfer-basic/chaincode-external` 目录,编译合约镜像:
 
+对于 amd 系统 执行下面的命令编译镜像
+
 ```
 docker build -t hyperledger/asset-transfer-basic .
+```
+对于 Apple Silicon 系统 执行下面的命令编译镜像
+```
+docker buildx build --platform linux/amd64 -t hyperledger/asset-transfer-basic .
 ```
 
 启动合约容器:
 
 ```
-docker run -it --rm --name asset-transfer-basic.org1.example.com --hostname asset-transfer-basic.org1.example.com --env-file chaincode.env --network=net_test hyperledger/asset-transfer-basic
+docker run -it --rm --name asset-transfer-basic.org1.example.com --hostname asset-transfer-basic.org1.example.com --env-file chaincode.env --network=docker_test hyperledger/asset-transfer-basic
 ```
 
 This will start the container and start the external chaincode service within it.
@@ -175,7 +183,7 @@ Now that the chaincode is deployed to the channel, and started as an external se
 
 ## Using the Asset-Transfer-Basic external chaincode
 
-切换到 `fabric-samples/test-network` 目录，重新打开一个窗口，执行下面的命令
+切换到 `fabric-samples/test-network` 目录，执行下面的命令
 
 ```
 peer chaincode invoke -n basic -c '{"Args":["InitLedger"]}' -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel

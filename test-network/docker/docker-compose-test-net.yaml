@@ -17,6 +17,7 @@ services:
 
   orderer.example.com:
     container_name: orderer.example.com
+    platform: linux/amd64
     image: hyperledger/fabric-orderer:$IMAGE_TAG
     environment:
       - FABRIC_LOGGING_SPEC=INFO
@@ -50,6 +51,7 @@ services:
 
   peer0.org1.example.com:
     container_name: peer0.org1.example.com
+    platform: linux/amd64
     image: hyperledger/fabric-peer:$IMAGE_TAG
     environment:
       #Generic peer variables
@@ -90,6 +92,7 @@ services:
 
   peer0.org2.example.com:
     container_name: peer0.org2.example.com
+    platform: linux/amd64
     image: hyperledger/fabric-peer:$IMAGE_TAG
     environment:
       #Generic peer variables
@@ -130,6 +133,7 @@ services:
   
   cli:
     container_name: cli
+    platform: linux/amd64
     image: hyperledger/fabric-tools:$IMAGE_TAG
     tty: true
     stdin_open: true

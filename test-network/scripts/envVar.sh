@@ -9,7 +9,6 @@
 
 # imports
 . scripts/utils.sh
-FABRIC_CFG_PATH=$PWD/../config/
 export CORE_PEER_TLS_ENABLED=true
 export ORDERER_CA=${PWD}/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem
 export PEER0_ORG1_CA=${PWD}/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
@@ -45,7 +44,7 @@ setGlobals() {
     errorln "ORG Unknown"
   fi
 
-  if [ "$VERBOSE" == "true" ]; then
+  if [ "$VERBOSE" = "true" ]; then
     env | grep CORE
   fi
 }
