@@ -32,10 +32,10 @@ type Auction struct {
 
 // FullBid is the structure of a revealed bid
 type FullBid struct {
-	Type     string `json:"objectType"`
-	Price    int    `json:"price"`
-	Org      string `json:"org"`
-	Bidder   string `json:"bidder"`
+	Type   string `json:"objectType"`
+	Price  int    `json:"price"`
+	Org    string `json:"org"`
+	Bidder string `json:"bidder"`
 }
 
 // BidHash is the structure of a private bid
@@ -322,9 +322,9 @@ func (s *SmartContract) RevealBid(ctx contractapi.TransactionContextInterface, a
 
 	// we can add the bid to the auction if all checks have passed
 	type transientBidInput struct {
-		Price    int    `json:"price"`
-		Org      string `json:"org"`
-		Bidder   string `json:"bidder"`
+		Price  int    `json:"price"`
+		Org    string `json:"org"`
+		Bidder string `json:"bidder"`
 	}
 
 	// unmarshal bid imput
@@ -342,10 +342,10 @@ func (s *SmartContract) RevealBid(ctx contractapi.TransactionContextInterface, a
 
 	// marshal transient parameters and ID and MSPID into bid object
 	NewBid := FullBid{
-		Type:     bidKeyType,
-		Price:    bidInput.Price,
-		Org:      bidInput.Org,
-		Bidder:   bidInput.Bidder,
+		Type:   bidKeyType,
+		Price:  bidInput.Price,
+		Org:    bidInput.Org,
+		Bidder: bidInput.Bidder,
 	}
 
 	// check 4: make sure that the transaction is being submitted is the bidder

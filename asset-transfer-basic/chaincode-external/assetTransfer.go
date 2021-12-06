@@ -7,11 +7,11 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
-	"os"
-
 	"github.com/hyperledger/fabric-chaincode-go/shim"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+	"log"
+	"os"
+	"strconv"
 )
 
 type serverConfig struct {
@@ -62,6 +62,22 @@ func (s *SmartContract) InitLedger(ctx contractapi.TransactionContextInterface) 
 		}
 	}
 
+	for i := 1; i < 11; i++ {
+		balanceKey, err := ctx.GetStub().CreateCompositeKey("balancePrefix", []string{"recipient", strconv.Itoa(i), "sender"})
+		if err != nil {
+			return fmt.Errorf("failed to create composite key: %v", err)
+		}
+		assetJSON, err := json.Marshal("1")
+		if err != nil {
+			return err
+		}
+		err = ctx.GetStub().PutState(balanceKey, assetJSON)
+		if err != nil {
+			return err
+		}
+	}
+	log.Println("init success")
+
 	return nil
 }
 
@@ -105,7 +121,21 @@ func (s *SmartContract) ReadAsset(ctx contractapi.TransactionContextInterface, i
 	if err != nil {
 		return nil, err
 	}
+	balanceIterator, err := ctx.GetStub().GetStateByPartialCompositeKey("balancePrefix", []string{"recipient"})
+	if err != nil {
+		return nil, err
+	}
+	defer balanceIterator.Close()
 
+	// Iterate over keys that store balances and add them to partialBalance until
+	// either the necessary amount is reached or the keys ended
+	for balanceIterator.HasNext() {
+		queryResponse, err := balanceIterator.Next()
+		if err != nil {
+			return nil, err
+		}
+		log.Println(queryResponse.Key)
+	}
 	return &asset, nil
 }
 

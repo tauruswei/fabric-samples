@@ -555,6 +555,8 @@ chaincode:
     externalBuilders: 
         - path: /opt/gopath/src/github.com/hyperledger/fabric-samples/asset-transfer-basic/chaincode-external/sampleBuilder
           name: external-sample-builder
+        - path: /opt/gopath/src/github.com/hyperledger/fabric-samples/asset-transfer-basic/nft721/sampleBuilder
+          name: nft721
 
     # The maximum duration to wait for the chaincode build and install process
     # to complete.
