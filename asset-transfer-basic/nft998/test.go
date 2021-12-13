@@ -12,7 +12,7 @@ import (
  * @Date: 2021/12/3 5:24 下午
  */
 
-func main() {
+func test() {
 	fmt.Println(strconv.Atoi(""))
 	u, _ := strconv.ParseUint("42", 10, 64)
 	fmt.Println(u)

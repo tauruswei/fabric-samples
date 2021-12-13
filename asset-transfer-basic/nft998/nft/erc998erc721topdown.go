@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+	"github.com/hyperledger/fabric/common/util"
 	"strconv"
 )
 
@@ -36,7 +37,7 @@ func (nft *NFT998) RootOwnerOf(ctx contractapi.TransactionContextInterface, toke
 }
 func (nft *NFT998) RootOwnerOfChild(ctx contractapi.TransactionContextInterface, childContractName string, childTokenId uint64) (rootOwnerAddress string, err error) {
 	if childContractName != "" {
-		rootOwnerAddress, childTokenId, err = nft.OwnerOfChild(ctx, childContractName, childTokenId)
+		rootOwnerAddress, childTokenId, err = OwnerOfChild(ctx, childContractName, childTokenId)
 		if err != nil {
 			return "", err
 		}
@@ -47,7 +48,7 @@ func (nft *NFT998) RootOwnerOfChild(ctx contractapi.TransactionContextInterface,
 		if rootOwnerAddress != "" {
 			break
 		}
-		rootOwnerAddress, childTokenId, err = nft.OwnerOfChild(ctx, rootOwnerAddress, childTokenId)
+		rootOwnerAddress, childTokenId, err = OwnerOfChild(ctx, rootOwnerAddress, childTokenId)
 		if err != nil {
 			return "", err
 		}
@@ -62,22 +63,23 @@ func (nft *NFT998) RootOwnerOfChild(ctx contractapi.TransactionContextInterface,
  */
 func RemoveChild(ctx contractapi.TransactionContextInterface, tokenId uint64, childContractName string, childTokenId uint64) error {
 
-	childTokenIndex, err := ChildTokenIndex(ctx, tokenId, childContractName, childTokenId)
-	if err != nil {
-		return err
-	}
-	if childTokenIndex == 0 {
-		return fmt.Errorf("child token not owned by token, childTokenid = %d, childContractName = %s, parentTokenId = %d", childTokenId, childContractName, tokenId)
-	}
+	// 获取 childtoken 在 contract name 中的 index
+	//childTokenIndex, err := ChildTokenIndex(ctx, tokenId, childContractName, childTokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//if childTokenIndex == 0 {
+	//	return fmt.Errorf("child token not owned by token, childTokenid = %d, childContractName = %s, parentTokenId = %d", childTokenId, childContractName, tokenId)
+	//}
 	// remove child token
-	childTokenIndexKey, err := GetChildTokenIndexKey(ctx, tokenId, childContractName, childTokenId)
-	if err != nil {
-		return err
-	}
-	err = ctx.GetStub().DelState(childTokenIndexKey)
-	if err != nil {
-		return err
-	}
+	//childTokenIndexKey, err := GetChildTokenIndexKey(ctx, tokenId, childContractName, childTokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//err = ctx.GetStub().DelState(childTokenIndexKey)
+	//if err != nil {
+	//	return err
+	//}
 	childTokenOwnerKey, err := GetChildTokenOwnerKey(ctx, childContractName, childTokenId)
 	if err != nil {
 		return err
@@ -86,6 +88,7 @@ func RemoveChild(ctx contractapi.TransactionContextInterface, tokenId uint64, ch
 	if err != nil {
 		return err
 	}
+	//GetChildTokensKey(ctx,tokenId,childContractName)
 	childTokensKey, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTChildTokens, []string{fmt.Sprintf("%d", tokenId), childContractName, fmt.Sprintf("%d", childTokenId)})
 	if err != nil {
 		return err
@@ -107,14 +110,14 @@ func RemoveChild(ctx contractapi.TransactionContextInterface, tokenId uint64, ch
 		if err != nil {
 			return err
 		}
-		childContractIndexKey, err := GetChildContractIndexKey(ctx, tokenId, childContractName)
-		if err != nil {
-			return err
-		}
-		err = ctx.GetStub().DelState(childContractIndexKey)
-		if err != nil {
-			return err
-		}
+		//childContractIndexKey, err := GetChildContractIndexKey(ctx, tokenId, childContractName)
+		//if err != nil {
+		//	return err
+		//}
+		//err = ctx.GetStub().DelState(childContractIndexKey)
+		//if err != nil {
+		//	return err
+		//}
 	}
 	return nil
 }
@@ -132,48 +135,44 @@ func (nft *NFT998) TransferChild(ctx contractapi.TransactionContextInterface, fr
 	if parentTokenId != fromTokenId {
 		return fmt.Errorf("parent token does not own child token, parentTokenId = %d, childContractName = %s, childTokenId = %d", fromTokenId, childContractName, childTokenId)
 	}
-	childTokenIndex, err := ChildTokenIndex(ctx, fromTokenId, childContractName, childTokenId)
-	if err != nil {
-		return err
-	}
-	if childTokenIndex == 0 {
-		return fmt.Errorf("child token index can not be 0, parentTokenId = %d, childContractName = %s, childTokenId = %d", fromTokenId, childContractName, childTokenId)
-	}
-	rootOwner, err := nft.RootOwnerOf(ctx, fromTokenId)
-	if err != nil {
-		return err
-	}
-	sender, err := getSender(ctx)
-	if err != nil {
-		return err
-	}
-	rootOwnerAndTokenIdToApprovedAddressKey, err := GetRootOwnerAndTokenIdToApprovedAddressKey(ctx, rootOwner, fromTokenId)
-	if err != nil {
-		return err
-	}
-	rootOwnerAndTokenIdToApprovedAddress, err := ctx.GetStub().GetState(rootOwnerAndTokenIdToApprovedAddressKey)
-	if err != nil {
-		return err
-	}
-	if rootOwner != sender && string(rootOwnerAndTokenIdToApprovedAddress) != sender {
-		return fmt.Errorf("the sender does not have right to transfer child, sender = %s, parentTokenId = %d, childContractName = %s, childTokenId = %d", sender, fromTokenId, childContractName, childTokenId)
-	}
+	//childTokenIndex, err := ChildTokenIndex(ctx, fromTokenId, childContractName, childTokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//if childTokenIndex == 0 {
+	//	return fmt.Errorf("child token index can not be 0, parentTokenId = %d, childContractName = %s, childTokenId = %d", fromTokenId, childContractName, childTokenId)
+	//}
+	//rootOwner, err := nft.RootOwnerOf(ctx, fromTokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//sender, err := getSender(ctx)
+	//if err != nil {
+	//	return err
+	//}
+	//// todo
+	//rootOwnerAndTokenIdToApprovedAddressKey, err := GetRootOwnerAndTokenIdToApprovedAddressKey(ctx, rootOwner, fromTokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//rootOwnerAndTokenIdToApprovedAddress, err := ctx.GetStub().GetState(rootOwnerAndTokenIdToApprovedAddressKey)
+	//if err != nil {
+	//	return err
+	//}
+	//if rootOwner != sender && string(rootOwnerAndTokenIdToApprovedAddress) != sender {
+	//	return fmt.Errorf("the sender does not have right to transfer child, sender = %s, parentTokenId = %d, childContractName = %s, childTokenId = %d", sender, fromTokenId, childContractName, childTokenId)
+	//}
 
+	response := ctx.GetStub().InvokeChaincode(childContractName, util.ToChaincodeArgs("ReceiveFromNft998", to, strconv.FormatUint(childTokenId, 10), data), ctx.GetStub().GetChannelID())
+	if response.Status != 200 {
+		return fmt.Errorf("nft998 发送到 nft721 失败，msg = %s, tokenId = %d, childContractName = %s, childTokenId = %d", response.Message, fromTokenId, childContractName, childTokenId)
+	}
 	err = RemoveChild(ctx, fromTokenId, childContractName, childTokenId)
 	if err != nil {
 		return err
 	}
 
 	// todo 合约之间互相调用, 修改 nft 721   transfer  接口，接收  data string 参数
-
-	err = nft.addToken(ctx, to, childTokenId)
-	if err != nil {
-		return err
-	}
-	err = nft.increaseToken(ctx, to)
-	if err != nil {
-		return err
-	}
 
 	return nil
 }
@@ -220,6 +219,115 @@ func (nft *NFT998) OnERC721Received(ctx contractapi.TransactionContextInterface,
 }
 
 /*
+ * @Desc:
+ * @Param:
+ * @Return:
+ */
+func (nft *NFT998) ReceiveNft721(ctx contractapi.TransactionContextInterface, tokenId uint64, childContractName string, childTokenId uint64) error {
+
+	_, err := TokenToOwner(ctx, tokenId)
+	if err != nil {
+		return err
+	}
+	//index, err := ChildTokenIndex(ctx, tokenId, childContractName, childTokenId)
+	//if index!=0{
+	//	return fmt.Errorf("Cannot send child token because it has already been received, tokenId = %d, childContractName = %s, childTokenId=%d",tokenId,childContractName,childTokenId)
+	//}
+	//childTokenIndexKey, err := GetChildTokenIndexKey(ctx, tokenId, childContractName, childTokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//err = ctx.GetStub().PutState(childTokenIndexKey, []byte(fmt.Sprintf("%s", childTokenId)))
+	if err != nil {
+		return err
+	}
+	childTokensKey, err := GetChildTokensKey(ctx, tokenId, childContractName)
+	if err != nil {
+		return err
+	}
+	raw, err := ctx.GetStub().GetState(childTokensKey)
+	if err != nil {
+		return err
+	}
+	if raw != nil {
+		return fmt.Errorf("childTokenId = %d already owned by tokenId = %d ", childTokenId, tokenId)
+	}
+
+	err = ctx.GetStub().PutState(childTokensKey, []byte(fmt.Sprintf("%d", childTokenId)))
+	if err != nil {
+		return err
+	}
+	childTokenOwnerKey, err := GetChildTokenOwnerKey(ctx, childContractName, childTokenId)
+	if err != nil {
+		return err
+	}
+	err = ctx.GetStub().PutState(childTokenOwnerKey, []byte(fmt.Sprintf("%d", tokenId)))
+	if err != nil {
+		return err
+	}
+
+	childContractsKey, err := GetChildContractsKey(ctx, tokenId, childContractName)
+	if err != nil {
+		return err
+	}
+	childContracts, err := ctx.GetStub().GetState(childContractsKey)
+	if err != nil {
+		return err
+	}
+	if childContracts != nil {
+		//childContractsKey, err := GetChildContractsKey(ctx, tokenId, childContractName)
+		//if err != nil {
+		//	return err
+		//}
+		//err = ctx.GetStub().PutState(childContractsKey, []byte(childContractName))
+		//if err != nil {
+		//	return err
+		//}
+		return fmt.Errorf("childContract = %s already owned by tokenId = %d ", childContractName, tokenId)
+	}
+
+	err = ctx.GetStub().PutState(childContractsKey, []byte(childContractName))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func OwnerOfChild(ctx contractapi.TransactionContextInterface, childContractName string, childTokenId uint64) (parentTokenOwner string, parentTokenId uint64, err error) {
+	//var childIndexKey string
+	key, err := GetChildTokenOwnerKey(ctx, childContractName, childTokenId)
+	if err != nil {
+		return "", 0, err
+	}
+	parentTokenIdBytes, err := ctx.GetStub().GetState(key)
+	if err != nil {
+		return "", 0, err
+	}
+	if string(parentTokenIdBytes) != "" {
+		parentTokenId, err = strconv.ParseUint(string(parentTokenIdBytes), 10, 64)
+		if err != nil {
+			return "", 0, err
+		}
+		//childIndexKey, err = GetChildTokenIndexKey(ctx, parentTokenId, childContractName, childTokenId)
+		//if err != nil {
+		//	return "", 0, err
+		//}
+	}
+	//childIndex, err := ctx.GetStub().GetState(childIndexKey)
+
+	//if string(parentTokenIdBytes) == "" || string(childIndex) == "" {
+	if string(parentTokenIdBytes) == "" {
+		return "", 0, fmt.Errorf("child token does not have a parent token, childContractName = %s ,childTokenId = %d", childContractName, childTokenId)
+	}
+	parentTokenOwner, err = TokenToOwner(ctx, parentTokenId)
+	if err != nil {
+		return "", 0, err
+	}
+
+	return parentTokenOwner, parentTokenId, nil
+}
+
+/*
  * @Desc: get the parent token id of the specified child token
  * @Param:
  * @Return:
@@ -239,38 +347,7 @@ func ChildTokenOwner(ctx contractapi.TransactionContextInterface, childcontractN
 	}
 	return parentTokenId, nil
 }
-func (nft *NFT998) OwnerOfChild(ctx contractapi.TransactionContextInterface, childContractName string, childTokenId uint64) (parentTokenOwner string, parentTokenId uint64, err error) {
-	var childIndexKey string
-	key, err := GetChildTokenOwnerKey(ctx, childContractName, childTokenId)
-	if err != nil {
-		return "", 0, err
-	}
-	parentTokenIdBytes, err := ctx.GetStub().GetState(key)
-	if err != nil {
-		return "", 0, err
-	}
-	if string(parentTokenIdBytes) != "" {
-		parentTokenId, err = strconv.ParseUint(string(parentTokenIdBytes), 10, 64)
-		if err != nil {
-			return "", 0, err
-		}
-		childIndexKey, err = GetChildTokenIndexKey(ctx, parentTokenId, childContractName, childTokenId)
-		if err != nil {
-			return "", 0, err
-		}
-	}
-	childIndex, err := ctx.GetStub().GetState(childIndexKey)
 
-	if string(parentTokenIdBytes) == "" || string(childIndex) == "" {
-		return "", 0, fmt.Errorf("child token does not have a parent token, childContractName = %s ,childTokenId = %d", childContractName, childTokenId)
-	}
-	parentTokenOwner, err = TokenToOwner(ctx, parentTokenId)
-	if err != nil {
-		return "", 0, err
-	}
-
-	return parentTokenOwner, parentTokenId, nil
-}
 func TokenToOwner(ctx contractapi.TransactionContextInterface, tokenId uint64) (string, error) {
 	parentTokenToOwnerKey, err := GetTokenIdToTokenOwnerKey(ctx, tokenId)
 	if err != nil {

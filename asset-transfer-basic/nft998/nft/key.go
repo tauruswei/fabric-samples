@@ -8,6 +8,7 @@ import (
 
 // state db key prefix
 const (
+	ContractName             = "nft998"
 	KeyPrefixNFTURI          = "KEYTokenURI" // token uri
 	KeyPrefixNFTCount        = "KEYTokenCount"
 	KeyPrefixNFTCountByOwner = "KEYTokenCountOfOwner"
@@ -116,6 +117,19 @@ func GetChildTokenIndexKey(ctx contractapi.TransactionContextInterface, tokenId 
 	return key, err
 }
 
+/*
+ * @Desc:
+ * @Param:
+ * @Return:
+ */
+func GetChildContractsKey(ctx contractapi.TransactionContextInterface, tokenId uint64, childContractName string) (string, error) {
+	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTChildContracts, []string{fmt.Sprintf("%d", tokenId), childContractName})
+	if err != nil {
+		return "", err
+	}
+	return key, nil
+}
+
 // GetTokenURIKey .
 func GetTokenURIKey(ctx contractapi.TransactionContextInterface, tokenID uint64) (string, error) {
 	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTURI, []string{fmt.Sprintf("%d", tokenID)})
@@ -132,7 +146,7 @@ func GetTokenCountKey(ctx contractapi.TransactionContextInterface) (string, erro
 
 // GetTokenOwnerKey .
 func GetTokenOwnerKey(ctx contractapi.TransactionContextInterface, tokenID uint64) (string, error) {
-	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTOwner, []string{fmt.Sprintf("%d", tokenID)})
+	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTTokenIdToTokenOwner, []string{fmt.Sprintf("%d", tokenID)})
 	if err != nil {
 		return "", err
 	}

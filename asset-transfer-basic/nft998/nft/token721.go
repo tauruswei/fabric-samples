@@ -1,8 +1,10 @@
 package nft
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
+	"github.com/ethereum/go-ethereum/crypto"
 	"strconv"
 
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
@@ -10,6 +12,11 @@ import (
 
 // Mint 铸造 NFT
 func (nft *NFT998) Mint(ctx contractapi.TransactionContextInterface, owner string, tokenID uint64, uri string) error {
+	iterator, err := ctx.GetStub().GetStateByPartialCompositeKey(KeyPrefixNFTTokenIdToTokenOwner, []string{fmt.Sprintf("%d", tokenID)})
+	defer iterator.Close()
+	if iterator.HasNext() {
+		return fmt.Errorf("tokenId = %d is already assigned", tokenID)
+	}
 	fmt.Printf("Mint token %d for %s ,uri: %s\n", tokenID, owner, uri)
 	key, err := GetTokenURIKey(ctx, tokenID)
 	if err != nil {
@@ -31,6 +38,7 @@ func (nft *NFT998) Mint(ctx contractapi.TransactionContextInterface, owner strin
 	if err != nil {
 		return err
 	}
+
 	totalKey, _ := GetTokenCountKey(ctx)
 	// 修改 token 总量
 	return nft.calcCount(ctx, totalKey, true)
@@ -170,7 +178,12 @@ func (nft *NFT998) canTransfer(ctx contractapi.TransactionContextInterface, from
 		return false
 	}
 	// 所有资产授权操作人
-	approvedAll, err := nft.IsApprovedForAll(ctx, owner, from)
+	sender, _ := getSender(ctx)
+	if err != nil {
+		fmt.Printf("OwnerOf error: %s", err.Error())
+		return false
+	}
+	approvedAll, err := nft.IsApprovedForAll(ctx, owner, sender)
 	if err != nil {
 		fmt.Printf("IsApprovedForAll error: %s", err.Error())
 		return false
@@ -255,6 +268,18 @@ func checkSender(ctx contractapi.TransactionContextInterface, address string) (b
 		return true, nil
 	}
 	return false, nil
+}
+
+func (nft *NFT998) GetSender(ctx contractapi.TransactionContextInterface) (string, error) {
+	cert, err := ctx.GetClientIdentity().GetX509Certificate()
+	if err != nil {
+		return "", err
+	}
+	if pubkey, ok := cert.PublicKey.(*ecdsa.PublicKey); ok {
+		addr := crypto.PubkeyToAddress(*pubkey)
+		return addr.String(), nil
+	}
+	return "", errors.New("not found")
 }
 
 /*
