@@ -16,12 +16,21 @@ type NFT721 struct {
 	contractapi.Contract
 }
 
+/*
+ * @Desc:
+ * @Param:
+ * @Return:
+ */
+func (nft *NFT721) Init(ctx contractapi.TransactionContextInterface) {
+	fmt.Println("init success")
+}
+
 // Mint 铸造 NFT
 func (nft *NFT721) Mint(ctx contractapi.TransactionContextInterface, owner string, tokenID uint64, uri string) error {
-	iterator, err := ctx.GetStub().GetStateByPartialCompositeKey(KeyPrefixNFTTokenIdToTokenOwner, []string{fmt.Sprintf("%d",tokenID)})
+	iterator, err := ctx.GetStub().GetStateByPartialCompositeKey(KeyPrefixNFTTokenIdToTokenOwner, []string{fmt.Sprintf("%d", tokenID)})
 	defer iterator.Close()
-	if iterator.HasNext(){
-		return fmt.Errorf("tokenId = %d is already assigned",tokenID)
+	if iterator.HasNext() {
+		return fmt.Errorf("tokenId = %d is already assigned", tokenID)
 	}
 	fmt.Printf("Mint token %d for %s ,uri: %s\n", tokenID, owner, uri)
 	key, err := GetTokenURIKey(ctx, tokenID)
@@ -64,12 +73,12 @@ func (nft *NFT721) BalanceOf(ctx contractapi.TransactionContextInterface, owner 
 // OwnerOf 根据 tokenID 返回其所有人地址
 func (nft *NFT721) OwnerOf(ctx contractapi.TransactionContextInterface, tokenID uint64) (string, error) {
 	key, err := GetTokenOwnerKey(ctx, tokenID)
-	fmt.Println(fmt.Sprintf("key = %s",key))
+	fmt.Println(fmt.Sprintf("key = %s", key))
 	if err != nil {
 		return "", err
 	}
 	owner, err := ctx.GetStub().GetState(key)
-	fmt.Println(fmt.Sprintf("owner = %s",owner))
+	fmt.Println(fmt.Sprintf("owner = %s", owner))
 	if err != nil {
 		return "", err
 	}
@@ -107,7 +116,7 @@ func (nft *NFT721) TransferFrom(ctx contractapi.TransactionContextInterface, fro
 }
 
 // TransferFrom 根据 tokenID 将 NFT 从 998 转移到 721
-func (nft *NFT721) ReceiveFromNft998(ctx contractapi.TransactionContextInterface,  to string, tokenID uint64,data string) error {
+func (nft *NFT721) ReceiveFromNft998(ctx contractapi.TransactionContextInterface, to string, tokenID uint64, data string) error {
 	err := nft.addToken(ctx, to, tokenID)
 	if err != nil {
 		return err
@@ -180,8 +189,8 @@ func (nft *NFT721) canTransfer(ctx contractapi.TransactionContextInterface, from
 		fmt.Printf("OwnerOf error: %s", err.Error())
 		return false
 	}
-	if owner !=from{
-		fmt.Errorf("token does not owned by from, tokenId = %d, from= %s ",tokenID,from)
+	if owner != from {
+		fmt.Errorf("token does not owned by from, tokenId = %d, from= %s ", tokenID, from)
 		return false
 	}
 	isOwner, err := checkSender(ctx, from)
@@ -321,15 +330,13 @@ func (nft *NFT721) GetSender(ctx contractapi.TransactionContextInterface) (strin
  * @Param:
  * @Return:
  */
-func (nft *NFT721) SendNft721ToNft998(ctx contractapi.TransactionContextInterface, from string, tokenId uint64,parentContractName, childContractName string, childTokenId uint64) error {
+func (nft *NFT721) SendNft721ToNft998(ctx contractapi.TransactionContextInterface, from string, tokenId uint64, parentContractName, childContractName string, childTokenId uint64) error {
 	transfer := nft.canTransfer(ctx, from, childTokenId)
 	if transfer {
 		//_, err := TokenToOwner(ctx, tokenId)
 		//if err != nil {
 		//	return err
 		//}
-
-
 
 		//index, err := ChildTokenIndex(ctx, tokenId, childContractName, childTokenId)
 		//if index!=0{
@@ -393,8 +400,8 @@ func (nft *NFT721) SendNft721ToNft998(ctx contractapi.TransactionContextInterfac
 		//	return err
 		//}
 		response := ctx.GetStub().InvokeChaincode(parentContractName, util.ToChaincodeArgs("ReceiveNft721", strconv.FormatUint(tokenId, 10), childContractName, strconv.FormatUint(childTokenId, 10)), ctx.GetStub().GetChannelID())
-		if response.Status!=200{
-			return fmt.Errorf("nft7 发送到 nft998 失败，msg = %s, parentContractName = %s, tokenId = %d, childContractName = %s, childTokenId = %d",response.Message,parentContractName,tokenId,childContractName,childTokenId)
+		if response.Status != 200 {
+			return fmt.Errorf("nft7 发送到 nft998 失败，msg = %s, parentContractName = %s, tokenId = %d, childContractName = %s, childTokenId = %d", response.Message, parentContractName, tokenId, childContractName, childTokenId)
 		}
 		err := nft.delToken(ctx, from, childTokenId)
 		if err != nil {
