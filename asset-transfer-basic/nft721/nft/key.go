@@ -37,6 +37,20 @@ const (
 	// root token owner address => (tokenId => approved address)
 	//mapping(address => mapping(uint256 => address))
 	KeyPrefixNFTRootOwnerAndTokenIdToApprovedAddress = "KEYRootOwnerAndTokenIdToApprovedAddress"
+
+	//
+	KeyPrefixNFTDelegateToken = "KeyDelegateToken"
+
+	// dtokenID => tokenId
+	KeyPrefixNFTDelegateTokenParent = "KeyDelegateTokenParent"
+
+	// dtokenID => height
+	KeyPrefixNFTDelegateTokenHeight = "KeyDelegateTokenHeight"
+
+	// dtokenID => expiration
+	KeyPrefixNFTDelegateTokenExpiration = "KeyDelegateTokenExpiration"
+
+
 )
 
 /*
@@ -174,6 +188,32 @@ func GetApprovedAllKey(ctx contractapi.TransactionContextInterface, owner, opera
 // GetTokenCountByOwnerKey .
 func GetTokenCountByOwnerKey(ctx contractapi.TransactionContextInterface, owner string) (string, error) {
 	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTCountByOwner, []string{owner})
+	if err != nil {
+		return "", err
+	}
+	return key, nil
+}
+
+// GetDtokenParentKey .
+func GetDtokenParentKey(ctx contractapi.TransactionContextInterface, dtokenID uint64) (string, error) {
+	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTDelegateTokenParent, []string{fmt.Sprintf("%d", dtokenID)})
+	if err != nil {
+		return "", err
+	}
+	return key, nil
+}
+// GetDtokenHeightKey .
+func GetDtokenHeightKey(ctx contractapi.TransactionContextInterface, dtokenID uint64) (string, error) {
+	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTDelegateTokenHeight, []string{fmt.Sprintf("%d", dtokenID)})
+	if err != nil {
+		return "", err
+	}
+	return key, nil
+}
+
+// GetDtokenExpirationKey .
+func GetDtokenExpirationKey(ctx contractapi.TransactionContextInterface, dtokenID uint64) (string, error) {
+	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTDelegateTokenExpiration, []string{fmt.Sprintf("%d", dtokenID)})
 	if err != nil {
 		return "", err
 	}

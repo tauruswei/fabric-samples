@@ -14,6 +14,7 @@ func main() {
 	if err := cc.Start(); err != nil {
 		fmt.Printf("Error starting NFT chaincode: %s", err)
 	}
+	fmt.Println()
 }
 
 //type serverConfig struct {
