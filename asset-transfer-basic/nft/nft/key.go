@@ -8,7 +8,6 @@ import (
 
 // state db key prefix
 const (
-	ContractName             = "nft721"
 	KeyPrefixNFTName         = "KEYTokenName"  // token name
 	KeyPrefixNFTLabel        = "KEYTokenLabel" // token label
 	KeyPrefixNFTURI          = "KEYTokenURI"   // token uri
@@ -114,8 +113,8 @@ func GetChildContractsKey(ctx contractapi.TransactionContextInterface, tokenId u
  * @Param:
  * @Return:
  */
-func GetChildTokensKey(ctx contractapi.TransactionContextInterface, tokenId uint64, childContractName string, childTokenId uint64) (string, error) {
-	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTChildTokens, []string{fmt.Sprintf("%d", tokenId), childContractName, fmt.Sprintf("%d", childTokenId)})
+func GetChildTokensKey(ctx contractapi.TransactionContextInterface, tokenId uint64, childContractName string) (string, error) {
+	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTChildTokens, []string{fmt.Sprintf("%d", tokenId), childContractName})
 	if err != nil {
 		return "", err
 	}

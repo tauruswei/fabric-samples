@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"github.com/hyperledger/fabric/common/util"
 	"strconv"
 	"time"
 
@@ -13,7 +12,7 @@ import (
 )
 
 // NFT nft chaincode 参照 ERC1155
-type NFT721 struct {
+type NFT struct {
 	contractapi.Contract
 }
 
@@ -22,12 +21,12 @@ type NFT721 struct {
  * @Param:
  * @Return:
  */
-func (nft *NFT721) Init(ctx contractapi.TransactionContextInterface) {
+func (nft *NFT) Init(ctx contractapi.TransactionContextInterface) {
 	fmt.Println("init success")
 }
 
 // Mint 铸造 NFT
-func (nft *NFT721) Mint(ctx contractapi.TransactionContextInterface, owner string, tokenID uint64, name,itle,label,uri,desc string) error {
+func (nft *NFT) Mint(ctx contractapi.TransactionContextInterface, owner string, tokenID uint64, name, itle, label, uri, desc string) error {
 	iterator, err := ctx.GetStub().GetStateByPartialCompositeKey(KeyPrefixNFTTokenIdToTokenOwner, []string{fmt.Sprintf("%d", tokenID)})
 	defer iterator.Close()
 	if iterator.HasNext() {
@@ -82,114 +81,8 @@ func (nft *NFT721) Mint(ctx contractapi.TransactionContextInterface, owner strin
 	return nft.calcCount(ctx, totalKey, true)
 }
 
-// Mint 铸造 DNFT
-func (nft *NFT721) MintDNFT(ctx contractapi.TransactionContextInterface, tokenID,dtokenID,height uint64 ,expiration string) error {
-	if !nft.canMintDnft(ctx, tokenID, expiration){
-		return  fmt.Errorf("can not mint Dnft")
-	}
-	iterator, err := ctx.GetStub().GetStateByPartialCompositeKey(KeyPrefixNFTDelegateTokenParent, []string{fmt.Sprintf("%d",dtokenID)})
-	if err != nil {
-		return err
-	}
-	defer iterator.Close()
-	if iterator.HasNext() {
-		return fmt.Errorf("dtokenId = %d is already assigned", dtokenID)
-	}
-	fmt.Printf("Mint dtoken %d for token %d \n", dtokenID, tokenID)
-
-	heightKey, err := GetDtokenHeightKey(ctx, tokenID)
-	if err != nil {
-		return err
-	}
-	err = ctx.GetStub().PutState(heightKey, []byte(strconv.FormatUint(height,10)))
-	if err != nil {
-		return err
-	}
-	expirationKey, err := GetDtokenExpirationKey(ctx, tokenID)
-	if err != nil {
-		return err
-	}
-	err = ctx.GetStub().PutState(expirationKey, []byte(expiration))
-	if err != nil {
-		return err
-	}
-
-	owner, err := nft.OwnerOf(ctx, tokenID)
-	if err != nil {
-		return err
-	}
-
-	// 将 nft token 和用户绑定
-	err = nft.addDToken(ctx, owner, tokenID,dtokenID)
-	if err != nil {
-		return err
-	}
-	// 修改 该用户的 token 数量
-	err = nft.increaseToken(ctx, owner)
-	if err != nil {
-		return err
-	}
-	totalKey, _ := GetTokenCountKey(ctx)
-	// 修改 token 总量
-	return nft.calcCount(ctx, totalKey, true)
-}
-
-// Revoke 注销 DNFT
-func (nft *NFT721) RevokeDNFT(ctx contractapi.TransactionContextInterface, dtokenID uint64) error {
-	// 先判断权限
-	owner, err := nft.OwnerOf(ctx,dtokenID)
-	if err != nil {
-		return err
-	}
-
-	transfer := nft.canTransfer(ctx, owner, dtokenID)
-
-	if !transfer{
-		return fmt.Errorf("can not revoke dtoken, dtokenId = %d",dtokenID)
-	}
-
-	// 权限验证通过，删 key
-	key, err := GetDtokenParentKey(ctx, dtokenID)
-	if err != nil {
-		return err
-	}
-	err = ctx.GetStub().DelState(key)
-	if err != nil {
-		return err
-	}
-
-	err = nft.delToken(ctx, owner, dtokenID)
-	if err != nil {
-		return err
-	}
-	err = nft.decreaseToken(ctx, owner)
-	if err != nil {
-		return err
-	}
-
-	heightKey, err := GetDtokenHeightKey(ctx, dtokenID)
-	if err != nil {
-		return err
-	}
-	err = ctx.GetStub().DelState(heightKey)
-	if err != nil {
-		return err
-	}
-	expirationKey, err := GetDtokenExpirationKey(ctx, dtokenID)
-	if err != nil {
-		return err
-	}
-	err = ctx.GetStub().DelState(expirationKey)
-	if err != nil {
-		return err
-	}
-	totalKey, _ := GetTokenCountKey(ctx)
-
-	return nft.calcCount(ctx, totalKey, false)
-}
-
 // BalanceOf owner 的 NFT 数量
-func (nft *NFT721) BalanceOf(ctx contractapi.TransactionContextInterface, owner string) (uint64, error) {
+func (nft *NFT) BalanceOf(ctx contractapi.TransactionContextInterface, owner string) (uint64, error) {
 	key, err := GetTokenCountByOwnerKey(ctx, owner)
 	if err != nil {
 		return 0, err
@@ -203,7 +96,7 @@ func (nft *NFT721) BalanceOf(ctx contractapi.TransactionContextInterface, owner 
 }
 
 // OwnerOf 根据 tokenID 返回其所有人地址
-func (nft *NFT721) OwnerOf(ctx contractapi.TransactionContextInterface, tokenID uint64) (string, error) {
+func (nft *NFT) OwnerOf(ctx contractapi.TransactionContextInterface, tokenID uint64) (string, error) {
 	key, err := GetTokenOwnerKey(ctx, tokenID)
 	fmt.Println(fmt.Sprintf("key = %s", key))
 	if err != nil {
@@ -218,7 +111,7 @@ func (nft *NFT721) OwnerOf(ctx contractapi.TransactionContextInterface, tokenID 
 }
 
 // SafeTransferFrom 根据 tokenID 将 NFT从 from 转移到 to
-func (nft *NFT721) SafeTransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, tokenID uint64, data []byte) error {
+func (nft *NFT) SafeTransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, tokenID uint64, data []byte) error {
 	if !nft.canTransfer(ctx, from, tokenID) {
 		return errors.New("can not transfer")
 	}
@@ -226,7 +119,7 @@ func (nft *NFT721) SafeTransferFrom(ctx contractapi.TransactionContextInterface,
 }
 
 // TransferFrom 根据 tokenID 将 NFT从 from 转移到 to
-func (nft *NFT721) TransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, tokenID uint64) error {
+func (nft *NFT) TransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, tokenID uint64) error {
 
 	err := nft.delToken(ctx, from, tokenID)
 	if err != nil {
@@ -251,12 +144,12 @@ func (nft *NFT721) TransferFrom(ctx contractapi.TransactionContextInterface, fro
 	}
 	tokenIdBytes, err := ctx.GetStub().GetState(ownerTokensHistorykey)
 
-	return  ctx.GetStub().PutState(ownerTokensHistorykey,[]byte(fmt.Sprintf("%s-%s", string(tokenIdBytes), strconv.FormatUint(tokenID, 10))))
+	return ctx.GetStub().PutState(ownerTokensHistorykey, []byte(fmt.Sprintf("%s-%s", string(tokenIdBytes), strconv.FormatUint(tokenID, 10))))
 
 }
 
 // 获取 owner 曾经拥有的 nft token
-func (nft *NFT721) GetOwnerTokensHistory(ctx contractapi.TransactionContextInterface, from string, to string, tokenID uint64) error {
+func (nft *NFT) GetOwnerTokensHistory(ctx contractapi.TransactionContextInterface, from string, to string, tokenID uint64) error {
 
 	err := nft.delToken(ctx, from, tokenID)
 	if err != nil {
@@ -281,12 +174,12 @@ func (nft *NFT721) GetOwnerTokensHistory(ctx contractapi.TransactionContextInter
 	}
 	tokenIdBytes, err := ctx.GetStub().GetState(ownerTokensHistorykey)
 
-	return  ctx.GetStub().PutState(ownerTokensHistorykey,[]byte(fmt.Sprintf("%s-%s", string(tokenIdBytes), strconv.FormatUint(tokenID, 10))))
+	return ctx.GetStub().PutState(ownerTokensHistorykey, []byte(fmt.Sprintf("%s-%s", string(tokenIdBytes), strconv.FormatUint(tokenID, 10))))
 
 }
 
 // TransferFrom 根据 tokenID 将 NFT 从 998 转移到 721
-func (nft *NFT721) ReceiveFromNft998(ctx contractapi.TransactionContextInterface, to string, tokenID uint64, data string) error {
+func (nft *NFT) ReceiveFromNft998(ctx contractapi.TransactionContextInterface, to string, tokenID uint64, data string) error {
 	err := nft.addToken(ctx, to, tokenID)
 	if err != nil {
 		return err
@@ -299,7 +192,7 @@ func (nft *NFT721) ReceiveFromNft998(ctx contractapi.TransactionContextInterface
 }
 
 // Approve 授予 approved 拥有 tokenID 的转移权力
-func (nft *NFT721) Approve(ctx contractapi.TransactionContextInterface, approved string, tokenID uint64) error {
+func (nft *NFT) Approve(ctx contractapi.TransactionContextInterface, approved string, tokenID uint64) error {
 	key, err := GetTokenApprovedKey(ctx, tokenID)
 	if err != nil {
 		return err
@@ -312,7 +205,7 @@ func (nft *NFT721) Approve(ctx contractapi.TransactionContextInterface, approved
  * @Param:
  * @Return:
  */
-func (nft *NFT721) SetApprovalForAll(ctx contractapi.TransactionContextInterface, operator string, approved bool) error {
+func (nft *NFT) SetApprovalForAll(ctx contractapi.TransactionContextInterface, operator string, approved bool) error {
 	sender, err := getSender(ctx)
 	if err != nil {
 		return err
@@ -325,7 +218,7 @@ func (nft *NFT721) SetApprovalForAll(ctx contractapi.TransactionContextInterface
 }
 
 // GetApproved 返回 tokenID 的授权地址
-func (nft *NFT721) GetApproved(ctx contractapi.TransactionContextInterface, tokenID uint64) (string, error) {
+func (nft *NFT) GetApproved(ctx contractapi.TransactionContextInterface, tokenID uint64) (string, error) {
 	key, err := GetTokenApprovedKey(ctx, tokenID)
 	if err != nil {
 		return "", err
@@ -338,7 +231,7 @@ func (nft *NFT721) GetApproved(ctx contractapi.TransactionContextInterface, toke
 }
 
 // IsApprovedForAll 查询 owner 的 NFT 转移权力是否授予 operator
-func (nft *NFT721) IsApprovedForAll(ctx contractapi.TransactionContextInterface, owner string, operator string) (bool, error) {
+func (nft *NFT) IsApprovedForAll(ctx contractapi.TransactionContextInterface, owner string, operator string) (bool, error) {
 	key, err := GetApprovedAllKey(ctx, owner, operator)
 	if err != nil {
 		return false, err
@@ -352,8 +245,9 @@ func (nft *NFT721) IsApprovedForAll(ctx contractapi.TransactionContextInterface,
 	}
 	return strconv.ParseBool(string(raw))
 }
+
 // 判断是不是有操作 token 的权限
-func (nft *NFT721) canTransfer(ctx contractapi.TransactionContextInterface, from string, tokenID uint64) bool {
+func (nft *NFT) canTransfer(ctx contractapi.TransactionContextInterface, from string, tokenID uint64) bool {
 	owner, err := nft.OwnerOf(ctx, tokenID)
 	if err != nil {
 		fmt.Printf("OwnerOf error: %s", err.Error())
@@ -368,11 +262,11 @@ func (nft *NFT721) canTransfer(ctx contractapi.TransactionContextInterface, from
 		fmt.Printf("checkSender error: %s", err.Error())
 		return false
 	}
-	// NFT721 拥有者
+	// NFT 拥有者
 	if isOwner {
 		return true
 	}
-	// NFT721 授权操作人
+	// NFT 授权操作人
 	approved, err := nft.GetApproved(ctx, tokenID)
 	if err != nil {
 		fmt.Printf("GetApproved error: %s", err.Error())
@@ -394,16 +288,16 @@ func (nft *NFT721) canTransfer(ctx contractapi.TransactionContextInterface, from
 	}
 	return false
 }
-func (nft *NFT721) canMintDnft(ctx contractapi.TransactionContextInterface, tokenID uint64,expiration string) bool {
+func (nft *NFT) canMintDnft(ctx contractapi.TransactionContextInterface, tokenID uint64, expiration string) bool {
 	// 首先进行权限的判断
 	owner, err := nft.OwnerOf(ctx, tokenID)
 	if err != nil {
-		fmt.Printf("get owner of tokenId=%d error: %s", tokenID,err.Error())
+		fmt.Printf("get owner of tokenId=%d error: %s", tokenID, err.Error())
 		return false
 	}
 
 	transfer := nft.canTransfer(ctx, owner, tokenID)
-	if !transfer{
+	if !transfer {
 		return transfer
 	}
 
@@ -418,7 +312,7 @@ func (nft *NFT721) canMintDnft(ctx contractapi.TransactionContextInterface, toke
 		fmt.Printf("get Dtoken Height error: %s", err.Error())
 		return false
 	}
-	if height==nil{
+	if height == nil {
 		return true
 	}
 	expirationKey, err := GetDtokenExpirationKey(ctx, tokenID)
@@ -435,13 +329,13 @@ func (nft *NFT721) canMintDnft(ctx contractapi.TransactionContextInterface, toke
 	t1, err1 := time.Parse("2006-01-02 15:04:05", string(expirationBytes))
 	t2, err2 := time.Parse("2006-01-02 15:04:05", expiration)
 	if err1 == nil && err2 == nil && t1.Before(t2) {
-		fmt.Printf("dtoken's expiration = %s is after parent token's expiration = %s, error: %s", string(expirationBytes),expiration,err.Error())
+		fmt.Printf("dtoken's expiration = %s is after parent token's expiration = %s, error: %s", string(expirationBytes), expiration, err.Error())
 		return false
 	}
 	return true
 }
 
-func (nft *NFT721) delToken(ctx contractapi.TransactionContextInterface, from string, tokenID uint64) error {
+func (nft *NFT) delToken(ctx contractapi.TransactionContextInterface, from string, tokenID uint64) error {
 	key, err := GetTokenOwnerKey(ctx, tokenID)
 	if err != nil {
 		return err
@@ -450,8 +344,7 @@ func (nft *NFT721) delToken(ctx contractapi.TransactionContextInterface, from st
 
 }
 
-
-func (nft *NFT721) delDtoken(ctx contractapi.TransactionContextInterface, from string, tokenID uint64) error {
+func (nft *NFT) delDtoken(ctx contractapi.TransactionContextInterface, from string, tokenID uint64) error {
 	key, err := GetTokenOwnerKey(ctx, tokenID)
 	if err != nil {
 		return err
@@ -460,7 +353,7 @@ func (nft *NFT721) delDtoken(ctx contractapi.TransactionContextInterface, from s
 
 }
 
-func (nft *NFT721) increaseToken(ctx contractapi.TransactionContextInterface, to string) error {
+func (nft *NFT) increaseToken(ctx contractapi.TransactionContextInterface, to string) error {
 	key, err := GetTokenCountByOwnerKey(ctx, to)
 	if err != nil {
 		return err
@@ -468,7 +361,7 @@ func (nft *NFT721) increaseToken(ctx contractapi.TransactionContextInterface, to
 	return nft.calcCount(ctx, key, true)
 }
 
-func (nft *NFT721) decreaseToken(ctx contractapi.TransactionContextInterface, from string) error {
+func (nft *NFT) decreaseToken(ctx contractapi.TransactionContextInterface, from string) error {
 	key, err := GetTokenCountByOwnerKey(ctx, from)
 	if err != nil {
 		return err
@@ -477,15 +370,16 @@ func (nft *NFT721) decreaseToken(ctx contractapi.TransactionContextInterface, fr
 }
 
 // 将 nft token 与用户绑定
-func (nft *NFT721) addToken(ctx contractapi.TransactionContextInterface, to string, tokenID uint64) error {
+func (nft *NFT) addToken(ctx contractapi.TransactionContextInterface, to string, tokenID uint64) error {
 	key, err := GetTokenOwnerKey(ctx, tokenID)
 	if err != nil {
 		return err
 	}
 	return ctx.GetStub().PutState(key, []byte(to))
 }
+
 // 将 delegated token 和 parent token 绑定
-func (nft *NFT721) addDToken(ctx contractapi.TransactionContextInterface, to string,tokenID, dtokenID uint64) error {
+func (nft *NFT) addDToken(ctx contractapi.TransactionContextInterface, to string, tokenID, dtokenID uint64) error {
 	key, err := GetDtokenParentKey(ctx, dtokenID)
 	if err != nil {
 		return err
@@ -496,7 +390,7 @@ func (nft *NFT721) addDToken(ctx contractapi.TransactionContextInterface, to str
 		return err
 	}
 	tokenOwnerKey, err := GetTokenOwnerKey(ctx, dtokenID)
-	fmt.Printf("key = %s , owner = %s \n",tokenOwnerKey,to)
+	fmt.Printf("key = %s , owner = %s \n", tokenOwnerKey, to)
 	if err != nil {
 		return err
 	}
@@ -504,7 +398,7 @@ func (nft *NFT721) addDToken(ctx contractapi.TransactionContextInterface, to str
 }
 
 // 修改 nft token 数量
-func (nft *NFT721) calcCount(ctx contractapi.TransactionContextInterface, key string, increase bool) error {
+func (nft *NFT) calcCount(ctx contractapi.TransactionContextInterface, key string, increase bool) error {
 	var calcF func(int) int
 	calcFIncrease := func(count int) int {
 		count++
@@ -557,7 +451,7 @@ func getSender(ctx contractapi.TransactionContextInterface) (string, error) {
 	return "", errors.New("not found")
 }
 
-func (nft *NFT721) GetSender(ctx contractapi.TransactionContextInterface) (string, error) {
+func (nft *NFT) GetSender(ctx contractapi.TransactionContextInterface) (string, error) {
 	cert, err := ctx.GetClientIdentity().GetX509Certificate()
 	if err != nil {
 		return "", err
@@ -574,7 +468,7 @@ func (nft *NFT721) GetSender(ctx contractapi.TransactionContextInterface) (strin
  * @Param:
  * @Return:
  */
-func (nft *NFT721) SendNft721ToNft998(ctx contractapi.TransactionContextInterface, from string, tokenId uint64, parentContractName, childContractName string, childTokenId uint64) error {
+func (nft *NFT) SendNft721ToNft998(ctx contractapi.TransactionContextInterface, from string, tokenId uint64, parentContractName, childContractName string, childTokenId uint64) error {
 	transfer := nft.canTransfer(ctx, from, childTokenId)
 	if transfer {
 		//_, err := TokenToOwner(ctx, tokenId)
@@ -643,11 +537,23 @@ func (nft *NFT721) SendNft721ToNft998(ctx contractapi.TransactionContextInterfac
 		//if err != nil {
 		//	return err
 		//}
-		response := ctx.GetStub().InvokeChaincode(parentContractName, util.ToChaincodeArgs("ReceiveNft721", strconv.FormatUint(tokenId, 10), childContractName, strconv.FormatUint(childTokenId, 10)), ctx.GetStub().GetChannelID())
-		if response.Status != 200 {
-			return fmt.Errorf("nft7 发送到 nft998 失败，msg = %s, parentContractName = %s, tokenId = %d, childContractName = %s, childTokenId = %d", response.Message, parentContractName, tokenId, childContractName, childTokenId)
+		//response := ctx.GetStub().InvokeChaincode(parentContractName, util.ToChaincodeArgs("ReceiveNft721", strconv.FormatUint(tokenId, 10), childContractName, strconv.FormatUint(childTokenId, 10)), ctx.GetStub().GetChannelID())
+		//if response.Status != 200 {
+		//	return fmt.Errorf("nft7 发送到 nft998 失败，msg = %s, parentContractName = %s, tokenId = %d, childContractName = %s, childTokenId = %d", response.Message, parentContractName, tokenId, childContractName, childTokenId)
+		//}
+		if childContractName == "" {
+			label, err := nft.TokenLabel(ctx, childTokenId)
+			if err != nil {
+				return err
+			}
+			childContractName = label
 		}
-		err := nft.delToken(ctx, from, childTokenId)
+		err := nft.ReceiveNft721(ctx, tokenId, childContractName, childTokenId)
+		if err != nil {
+			return err
+		}
+
+		err = nft.delToken(ctx, from, childTokenId)
 		if err != nil {
 			return err
 		}
@@ -662,54 +568,4 @@ func (nft *NFT721) SendNft721ToNft998(ctx contractapi.TransactionContextInterfac
 		return err
 	}
 	return fmt.Errorf("sender can not transfer, sender = %s, childTokenId = %d", sender, childTokenId)
-}
-func TokenToOwner(ctx contractapi.TransactionContextInterface, tokenId uint64) (string, error) {
-	parentTokenToOwnerKey, err := GetTokenIdToTokenOwnerKey(ctx, tokenId)
-	if err != nil {
-		return "", err
-	}
-	tokenOwnerAddress, err := ctx.GetStub().GetState(parentTokenToOwnerKey)
-	if tokenOwnerAddress == nil {
-		return "", fmt.Errorf("token does not hava a owner, tokenId = %d", tokenId)
-	}
-	return string(tokenOwnerAddress), nil
-}
-
-/*
- * @Desc:  获取 chilid token 在 child contract 中的 index
- * @Param:
- * @Return:
- */
-func ChildTokenIndex(ctx contractapi.TransactionContextInterface, tokenId uint64, childContractName string, childTokenId uint64) (uint64, error) {
-	childTokenIndexKey, err := GetChildTokenIndexKey(ctx, tokenId, childContractName, childTokenId)
-	if err != nil {
-		return 0, err
-	}
-	childTokenIndexBytes, err := ctx.GetStub().GetState(childTokenIndexKey)
-	if err != nil {
-		return 0, err
-	}
-	childTokenIndex, err := strconv.ParseUint(string(childTokenIndexBytes), 10, 64)
-	return childTokenIndex, nil
-}
-
-/*
- * @Desc: get the parent token id of the specified child token
- * @Param:
- * @Return:
- */
-func ChildTokenOwner(ctx contractapi.TransactionContextInterface, childcontractName string, childTokenId uint64) (uint64, error) {
-	childTokenOwnerKey, err := GetChildTokenOwnerKey(ctx, childcontractName, childTokenId)
-	if err != nil {
-		return 0, err
-	}
-	tokenId, err := ctx.GetStub().GetState(childTokenOwnerKey)
-	if err != nil {
-		return 0, err
-	}
-	parentTokenId, err := strconv.ParseUint(string(tokenId), 10, 64)
-	if err != nil {
-		return 0, err
-	}
-	return parentTokenId, nil
 }
