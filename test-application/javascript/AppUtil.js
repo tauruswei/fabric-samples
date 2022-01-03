@@ -41,8 +41,21 @@ exports.buildCCPOrg2 = () => {
 	console.log(`Loaded the network configuration located at ${ccpPath}`);
 	return ccp;
 };
-
-exports.buildWallet = async (Wallets, walletPath) => {
+//
+// exports.buildWallet = async (Wallets, walletPath) => {
+// 	// Create a new  wallet : Note that wallet is for managing identities.
+// 	let wallet;
+// 	if (walletPath) {
+// 		wallet = await Wallets.newFileSystemWallet(walletPath);
+// 		console.log(`Built a file system wallet at ${walletPath}`);
+// 	} else {
+// 		wallet = await Wallets.newInMemoryWallet();
+// 		console.log('Built an in memory wallet');
+// 	}
+//
+// 	return wallet;
+// };
+exports.buildWallet = async (Wallets,walletPath, mspOrgId, adminUserId)=> {
 	// Create a new  wallet : Note that wallet is for managing identities.
 	let wallet;
 	if (walletPath) {
@@ -52,7 +65,27 @@ exports.buildWallet = async (Wallets, walletPath) => {
 		wallet = await Wallets.newInMemoryWallet();
 		console.log('Built an in memory wallet');
 	}
-
+	try {
+		const certPath = path.resolve(walletPath, 'baasCertPem');
+		const cert = fs.readFileSync(certPath, 'utf8');
+		console.log(cert);
+		// const parse = JSON.parse(s);
+		// console.log(parse);
+		const keyPath = path.resolve(walletPath, 'baasKeyPem_sk');
+		const key = fs.readFileSync(keyPath, 'utf8');
+		console.log(key);
+		const x509Identity = {
+			credentials: {
+				certificate: cert,
+				privateKey: key,
+			},
+			mspId: mspOrgId,
+			type: 'X.509',
+		};
+		await wallet.put(adminUserId, x509Identity);
+	} catch (error) {
+		console.error(`Failed to enroll admin user : ${error}`);
+	}
 	return wallet;
 };
 

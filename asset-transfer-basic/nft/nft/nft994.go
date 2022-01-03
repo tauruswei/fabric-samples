@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 	"strconv"
+	"time"
 )
 
 /**
@@ -116,4 +117,50 @@ func (nft *NFT) RevokeDNFT(ctx contractapi.TransactionContextInterface, dtokenID
 	totalKey, _ := GetTokenCountKey(ctx)
 
 	return nft.calcCount(ctx, totalKey, false)
+}
+func (nft *NFT) canMintDnft(ctx contractapi.TransactionContextInterface, tokenID uint64, expiration string) bool {
+	// 首先进行权限的判断
+	owner, err := nft.OwnerOf(ctx, tokenID)
+	if err != nil {
+		fmt.Printf("get owner of tokenId=%d error: %s", tokenID, err.Error())
+		return false
+	}
+
+	transfer := nft.canTransfer(ctx, owner, tokenID)
+	if !transfer {
+		return transfer
+	}
+
+	// 其次判断 token 是不是 Dtoken,如果是 dtoken，要比较 expiration
+	heightKey, err := GetDtokenHeightKey(ctx, tokenID)
+	if err != nil {
+		fmt.Printf("get Dtoken Height Key error: %s", err.Error())
+		return false
+	}
+	height, err := ctx.GetStub().GetState(heightKey)
+	if err != nil {
+		fmt.Printf("get Dtoken Height error: %s", err.Error())
+		return false
+	}
+	if height == nil {
+		return true
+	}
+	expirationKey, err := GetDtokenExpirationKey(ctx, tokenID)
+	if err != nil {
+		fmt.Printf("get Dtoken Expiration Key error: %s", err.Error())
+		return false
+	}
+	expirationBytes, err := ctx.GetStub().GetState(expirationKey)
+	if err != nil {
+		fmt.Printf("get Dtoken Expiration error: %s", err.Error())
+		return false
+	}
+	//先把时间字符串格式化成相同的时间类型
+	t1, err1 := time.Parse("2006-01-02 15:04:05", string(expirationBytes))
+	t2, err2 := time.Parse("2006-01-02 15:04:05", expiration)
+	if err1 == nil && err2 == nil && t1.Before(t2) {
+		fmt.Printf("dtoken's expiration = %s is after parent token's expiration = %s, error: %s", string(expirationBytes), expiration, err.Error())
+		return false
+	}
+	return true
 }

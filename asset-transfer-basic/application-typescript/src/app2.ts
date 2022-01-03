@@ -8,16 +8,16 @@ import * as path from 'path';
 import { buildCCPOrg1, buildWallet, prettyJSONString } from './utils/AppUtil';
 import { buildCAClient, enrollAdmin, registerAndEnrollUser } from './utils/CAUtil';
 
-const channelName = 'mychannel';
-const chaincodeName = 'basic';
-const mspOrg1 = 'Org1MSP';
+const channelName = 'test1';
+const chaincodeName = 'bnft';
+const mspOrg1 = 'NPC';
 // const walletPath = path.join(__dirname, 'wallet');
 const walletPath = path.join(__dirname, 'mywallet');
-const org1UserId = 'User1';
+const org1UserId = 'string';
 // const connectionPath = '/Users/fengxiaoxiao/work/go/src/github.com/hyperledger/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/connection-org1.json';
-const connectionPath = '/Users/fengxiaoxiao/work/go/src/github.com/hyperledger/fabric-samples/asset-transfer-basic/application-typescript/src/connection-org1.json';
-const certPath = '../mywallet/User1CertPem';
-const keyPath = '../mywallet/User1KeyPem';
+const connectionPath = '/Users/fengxiaoxiao/work/go/src/github.com/hyperledger/fabric-samples/asset-transfer-basic/application-typescript/src/connection-npc.json';
+const certPath = '../mywallet/baasCertPem';
+const keyPath = '../mywallet/baasKeyPem_sk';
 
 // pre-requisites:
 // - fabric-sample two organization test-network setup with two peers, ordering service,
@@ -94,7 +94,7 @@ async function main() {
         const gatewayOpts: GatewayOptions = {
             wallet,
             identity: org1UserId,
-            discovery: { enabled: false, asLocalhost: true }, // using asLocalhost as this gateway is using a fabric network deployed locally
+            discovery: { enabled: false, asLocalhost: false }, // using asLocalhost as this gateway is using a fabric network deployed locally
         };
 
         try {
@@ -103,6 +103,7 @@ async function main() {
             // submit transactions and query. All transactions submitted by this gateway will be
             // signed by this user using the credentials stored in the wallet.
             await gateway.connect(ccp, gatewayOpts);
+
             // Build a network instance based on the channel where the smart contract is deployed
             const network = await gateway.getNetwork(channelName);
 
@@ -114,8 +115,10 @@ async function main() {
             // deployed the first time. Any updates to the chaincode deployed later would likely not need to run
             // an "init" type function.
             console.log('\n--> Submit Transaction: InitLedger, function creates the initial set of assets on the ledger');
-            await contract.submitTransaction('InitLedger');
-            console.log('*** Result: committed');
+            let res = await contract.submitTransaction('GetSender');
+            // console.log('*** Result: committed');
+            console.log(res.toString());
+            console.log(`*** Result: ${prettyJSONString(res.toString())}`);
 
             // Let's try a query type operation (function).
             // This will be sent to just one peer and the results will be shown.

@@ -213,6 +213,51 @@ func (nft *NFT) TransferChildToParent(ctx contractapi.TransactionContextInterfac
 func (nft *NFT) GetChild(ctx contractapi.TransactionContextInterface, from string, tokenId uint64, childContractName string, childTokenId uint64) {
 	fmt.Println("not implement")
 }
+/*
+ * @Desc:
+ * @Param:
+ * @Return:
+ */
+func (nft *NFT) GetChilds(ctx contractapi.TransactionContextInterface, from string, tokenId uint64)([]byte,error) {
+	var childTokenIds []string
+	transfer := nft.canTransfer(ctx, from, tokenId)
+	sender, _ := getSender(ctx)
+	if !transfer{
+		return nil,fmt.Errorf("you do not have the privilege，sender = %s",sender)
+	}
+	for{
+		iterator, err := ctx.GetStub().GetStateByPartialCompositeKey(KeyPrefixNFTChildTokens, []string{fmt.Sprintf("%d", tokenId)})
+		if err != nil {
+			return nil,err
+		}
+		defer iterator.Close()
+		for iterator.HasNext() {
+
+
+			next, err := iterator.Next()
+			if err != nil {
+				return nil, err
+			}
+			tokenId, err = strconv.ParseUint(string(next.Value), 10, 64)
+			if err != nil {
+				return nil, err
+			}
+			//iterator, err := ctx.GetStub().GetStateByPartialCompositeKey(KeyPrefixNFTChildTokens, []string{fmt.Sprintf("%d", tokenId)})
+			//if err != nil {
+			//	return nil,err
+			//}
+			//defer iterator.Close()
+
+
+
+		}
+		childTokenIds = append(childTokenIds,strconv.FormatUint(tokenId,10))
+	}
+
+
+
+	return nil, nil
+}
 
 /*
  * @Desc:

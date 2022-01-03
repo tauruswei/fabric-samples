@@ -8,16 +8,12 @@ import * as path from 'path';
 import { buildCCPOrg1, buildWallet, prettyJSONString } from './utils/AppUtil';
 import { buildCAClient, enrollAdmin, registerAndEnrollUser } from './utils/CAUtil';
 
-const channelName = 'mychannel';
+const channelName = 'test1';
 const chaincodeName = 'basic';
-const mspOrg1 = 'Org1MSP';
+const mspOrg1 = 'NPC';
 // const walletPath = path.join(__dirname, 'wallet');
 const walletPath = path.join(__dirname, 'mywallet');
-const org1UserId = 'User1';
-// const connectionPath = '/Users/fengxiaoxiao/work/go/src/github.com/hyperledger/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/connection-org1.json';
-const connectionPath = '/Users/fengxiaoxiao/work/go/src/github.com/hyperledger/fabric-samples/asset-transfer-basic/application-typescript/src/connection-org1.json';
-const certPath = '../mywallet/User1CertPem';
-const keyPath = '../mywallet/User1KeyPem';
+const org1UserId = 'Admin@aa.npc';
 
 // pre-requisites:
 // - fabric-sample two organization test-network setup with two peers, ordering service,
@@ -69,7 +65,7 @@ const keyPath = '../mywallet/User1KeyPem';
 async function main() {
     try {
         // build an in memory object with the network configuration (also known as a connection profile)
-        const ccp = buildCCPOrg1(connectionPath);
+        const ccp = buildCCPOrg1();
 
         // build an instance of the fabric ca services client based on
         // the information in the network configuration
@@ -77,7 +73,7 @@ async function main() {
 
         // setup the wallet to hold the credentials of the application user
         // const wallet = await buildWallet(walletPath);
-        const wallet = await buildWallet(walletPath, mspOrg1, org1UserId, certPath, keyPath);
+        const wallet = await buildWallet(walletPath, mspOrg1);
 
         // in a real application this would be done on an administrative flow, and only once
         // await enrollAdmin(caClient, wallet, mspOrg1);
@@ -94,7 +90,7 @@ async function main() {
         const gatewayOpts: GatewayOptions = {
             wallet,
             identity: org1UserId,
-            discovery: { enabled: false, asLocalhost: true }, // using asLocalhost as this gateway is using a fabric network deployed locally
+            discovery: { enabled: true, asLocalhost: true }, // using asLocalhost as this gateway is using a fabric network deployed locally
         };
 
         try {
@@ -103,6 +99,7 @@ async function main() {
             // submit transactions and query. All transactions submitted by this gateway will be
             // signed by this user using the credentials stored in the wallet.
             await gateway.connect(ccp, gatewayOpts);
+
             // Build a network instance based on the channel where the smart contract is deployed
             const network = await gateway.getNetwork(channelName);
 
