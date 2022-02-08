@@ -162,6 +162,41 @@ func (nft *NFT) QueryMusicNFTToken(ctx contractapi.TransactionContextInterface, 
 }
 
 /*
+ * @Desc: 查询 721 token 的 history
+ * @Param:
+ * @Return:
+ */
+func (nft *NFT) QueryNFTTokenHistory(ctx contractapi.TransactionContextInterface, tokenId string) (string, error) {
+	tokenKey, err := GetTokenIdKey(ctx, tokenId)
+	if err != nil {
+		return "", err
+	}
+	resultsIterator, err := ctx.GetStub().GetHistoryForKey(tokenKey)
+	var buffer bytes.Buffer
+
+	buffer.WriteString("[")
+
+	bArrayMemberAlreadyWritten := false
+	for resultsIterator.HasNext() {
+		queryResponse, err := resultsIterator.Next()
+		if err != nil {
+			return "", err
+		}
+		// Add a comma before array members, suppress it for the first array member
+		if bArrayMemberAlreadyWritten == true {
+			buffer.WriteString(",")
+		}
+
+		buffer.WriteString(string(queryResponse.Value))
+		bArrayMemberAlreadyWritten = true
+	}
+	buffer.WriteString("]")
+	logger.Debugf("buffer = %+v", string(buffer.Bytes()))
+
+	return string(buffer.Bytes()), nil
+}
+
+/*
  * @Desc: 查询 歌曲的 授权 994 token，要求 授权token的过期时间大于 当前时间，默认返回符合要求的第一条数据
  * @Param:
  * @Return:
@@ -235,7 +270,7 @@ func (nft *NFT) QueryMusicDelegatedToken(ctx contractapi.TransactionContextInter
  * @Param:
  * @Return:
  */
-func (nft *NFT) CreateMusicContract(ctx contractapi.TransactionContextInterface, contractType int, data string, tokenId string) (string, error) {
+func (nft *NFT) CreateMusicContract(ctx contractapi.TransactionContextInterface, tokenId string, contractType int, data string) (string, error) {
 	logger.Debugf("method = %s, contractType = %d, data = %s, tokenId = %d", "MintMusicContract", contractType, data, tokenId)
 	tokenIdKey, err := GetContractKey(ctx, tokenId)
 	if err != nil {
@@ -304,11 +339,55 @@ func (nft *NFT) CreateMusicContract(ctx contractapi.TransactionContextInterface,
 }
 
 /*
+ * @Desc: 消息上链
+ * @Param:
+ * @Return:
+ */
+func (nft *NFT) CreateMusicMessage(ctx contractapi.TransactionContextInterface, tokenId, data string) error {
+	logger.Debugf("method = %s, data = %s, tokenId = %s", "CreateMusicMessage", data, tokenId)
+	tokenIdKey, err := GetMessageKey(ctx, tokenId)
+	if err != nil {
+		return err
+	}
+	msgBytes, err := ctx.GetStub().GetState(tokenIdKey)
+	if err != nil {
+		return err
+	}
+	if msgBytes != nil {
+		return fmt.Errorf("duplicate key for tokenId = %s", tokenId)
+	}
+
+	err = ctx.GetStub().PutState(tokenIdKey, []byte(data))
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
+ * @Desc: 读消息
+ * @Param:
+ * @Return:
+ */
+func (nft *NFT) ReadMusicMessage(ctx contractapi.TransactionContextInterface, tokenId string) (string, error) {
+	logger.Debugf("method = %s,  tokenId= %s", "ReadMusicMessage", tokenId)
+	tokenIdKey, err := GetMessageKey(ctx, tokenId)
+	if err != nil {
+		return "", err
+	}
+	msgBytes, err := ctx.GetStub().GetState(tokenIdKey)
+	if err != nil {
+		return "", err
+	}
+	return string(msgBytes), nil
+}
+
+/*
  * @Desc: 铸造 版权授权 NFT
  * @Param:
  * @Return:
  */
-func (nft *NFT) CreateMusicDelegatedContract(ctx contractapi.TransactionContextInterface, data string, tokenId string) (string, error) {
+func (nft *NFT) CreateMusicDelegatedContract(ctx contractapi.TransactionContextInterface, tokenId, data string) (string, error) {
 	logger.Debugf("method = %s, data = %s", "CreateMusicDelegatedContract", data)
 	tokenIdKey, err := GetContractKey(ctx, tokenId)
 	if err != nil {
@@ -1036,6 +1115,14 @@ func (nft *NFT) SafeTransferFrom(ctx contractapi.TransactionContextInterface, fr
 	return nft.TransferFrom(ctx, from, to, tokenId)
 }
 
+// SafeTransferFrom 根据 tokenId 将 NFT从 from 转移到 to
+func (nft *NFT) SafeTransferFromCouchdb(ctx contractapi.TransactionContextInterface, from string, to string, tokenId string, data []byte) error {
+	if !nft.canTransferCouchdb(ctx, from, tokenId) {
+		return errors.New("can not transfer")
+	}
+	return nft.TransferFromCouchdb(ctx, from, to, tokenId)
+}
+
 // TransferFrom 根据 tokenId 将 NFT从 from 转移到 to
 func (nft *NFT) TransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, tokenId uint64) error {
 
@@ -1063,6 +1150,38 @@ func (nft *NFT) TransferFrom(ctx contractapi.TransactionContextInterface, from s
 	tokenIdBytes, err := ctx.GetStub().GetState(ownerTokensHistorykey)
 
 	return ctx.GetStub().PutState(ownerTokensHistorykey, []byte(fmt.Sprintf("%s-%s", string(tokenIdBytes), strconv.FormatUint(tokenId, 10))))
+}
+
+// TransferFromCouchdb 根据 tokenId 将 NFT从 from 转移到 to
+func (nft *NFT) TransferFromCouchdb(ctx contractapi.TransactionContextInterface, from string, to string, tokenId string) error {
+	key, err := GetTokenIdKey(ctx, tokenId)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, fmt.Sprintf("get token key error, tokenId = %s", tokenId)))
+		return errors.WithMessagef(err, fmt.Sprintf("get token key error, tokenId = %s", tokenId))
+	}
+
+	data, err := ctx.GetStub().GetState(key)
+	if err != nil || data == nil {
+		logger.Error(GetErrorStackf(err, fmt.Sprintf("could find any record in the ledger, tokenId = %s", tokenId)))
+		return errors.WithMessagef(err, fmt.Sprintf("could find any record in the ledger, tokenId = %s", tokenId))
+	}
+
+	nft721 := BasicNFT{}
+	err = json.Unmarshal(data, &nft721)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "json unmarshal error， data = %s", data))
+		return errors.WithMessagef(err, "json unmarshal error， data = %s", data)
+	}
+
+	nft721.Owner = to
+
+	marshal, err := json.Marshal(nft721)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "json marshal error， nft721 = %+v", nft721))
+		return errors.WithMessagef(err, "json marshal error， nft721 = %+v", nft721)
+	}
+
+	return ctx.GetStub().PutState(key, marshal)
 
 }
 
@@ -1118,6 +1237,17 @@ func (nft *NFT) Approve(ctx contractapi.TransactionContextInterface, approved st
 	return ctx.GetStub().PutState(key, []byte(approved))
 }
 
+// ApproveCouchdb 授予 approved 拥有 tokenId 的转移权力
+func (nft *NFT) ApproveCouchdb(ctx contractapi.TransactionContextInterface, approved string, tokenId string) error {
+	logger.Debugf("method = %s, approved = %s, tokenId = %s", "ApproveCouchdb", approved, tokenId)
+
+	key, err := GetTokenApprovedKeyCouchdb(ctx, tokenId)
+	if err != nil {
+		return err
+	}
+	return ctx.GetStub().PutState(key, []byte(approved))
+}
+
 /*
  * @Desc: owner 的所有 NFT 都可以由 operator  来控制
  * @Param:
@@ -1138,6 +1268,19 @@ func (nft *NFT) SetApprovalForAll(ctx contractapi.TransactionContextInterface, o
 // GetApproved 返回 tokenId 的授权地址
 func (nft *NFT) GetApproved(ctx contractapi.TransactionContextInterface, tokenId uint64) (string, error) {
 	key, err := GetTokenApprovedKey(ctx, tokenId)
+	if err != nil {
+		return "", err
+	}
+	raw, err := ctx.GetStub().GetState(key)
+	if err != nil {
+		return "", err
+	}
+	return string(raw), nil
+}
+
+// GetApproved 返回 tokenId 的授权地址
+func (nft *NFT) GetApprovedCouchdb(ctx contractapi.TransactionContextInterface, tokenId string) (string, error) {
+	key, err := GetTokenApprovedKeyCouchdb(ctx, tokenId)
 	if err != nil {
 		return "", err
 	}
@@ -1197,6 +1340,62 @@ func (nft *NFT) canTransfer(ctx contractapi.TransactionContextInterface, from st
 	sender, _ := getSender(ctx)
 	// 所有资产授权操作人
 	approvedAll, err := nft.IsApprovedForAll(ctx, owner, sender)
+	if err != nil {
+		fmt.Printf("IsApprovedForAll error: %s", err.Error())
+		return false
+	}
+	if approvedAll {
+		return true
+	}
+	return false
+}
+
+// 判断是不是有操作 token 的权限, 数据库 couchdb
+func (nft *NFT) canTransferCouchdb(ctx contractapi.TransactionContextInterface, from string, tokenId string) bool {
+	key, err := GetTokenIdKey(ctx, tokenId)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "create token key error, tokenId = %s", tokenId))
+		return false
+	}
+	state, err := ctx.GetStub().GetState(key)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "could find any record in the ledger"))
+		return false
+	}
+	nft721 := BasicNFT{}
+	err = json.Unmarshal(state, &nft721)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "json unmarshal error, data = %s", string(state)))
+		return false
+	}
+
+	if nft721.Owner != from {
+		fmt.Errorf("token does not owned by from, tokenId = %d, from= %s ", tokenId, from)
+		return false
+	}
+
+	isOwner, err := checkSender(ctx, from)
+	if err != nil {
+		fmt.Printf("checkSender error: %s", err.Error())
+		return false
+	}
+	// NFT 拥有者
+	if isOwner {
+		return true
+	}
+
+	// NFT 授权操作人
+	approved, err := nft.GetApprovedCouchdb(ctx, tokenId)
+	if err != nil {
+		fmt.Printf("GetApproved error: %s", err.Error())
+		return false
+	}
+	sender, _ := getSender(ctx)
+	if approved == sender {
+		return true
+	}
+	// 所有资产授权操作人
+	approvedAll, err := nft.IsApprovedForAll(ctx, nft721.Owner, sender)
 	if err != nil {
 		fmt.Printf("IsApprovedForAll error: %s", err.Error())
 		return false

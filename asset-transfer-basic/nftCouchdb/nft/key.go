@@ -2,12 +2,12 @@ package nft
 
 import (
 	"fmt"
-
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 )
 
 // state db key prefix
 const (
+	KeyPrefixMessage         = "KEYMessage"    // message key name
 	KeyPrefixNFT             = "KEYToken"      // token name
 	KeyPrefixContract        = "KEYContract"   // contract
 	KeyPrefixNFTName         = "KEYTokenName"  // token name
@@ -57,6 +57,19 @@ const (
 	// dtokenID => expiration
 	KeyPrefixNFTDelegateTokenExpiration = "KeyDelegateTokenExpiration"
 )
+
+/*
+ * @Desc: 获取 message key
+ * @Param:
+ * @Return:
+ */
+func GetMessageKey(ctx contractapi.TransactionContextInterface, messageId string) (string, error) {
+	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixMessage, []string{messageId})
+	if err != nil {
+		return "", err
+	}
+	return key, nil
+}
 
 /*
  * @Desc: get the key of RootOwnerAndTokenIdToApprovedAddress
@@ -215,6 +228,15 @@ func GetTokenOwnerKey(ctx contractapi.TransactionContextInterface, tokenID uint6
 // GetTokenApprovedKey .
 func GetTokenApprovedKey(ctx contractapi.TransactionContextInterface, tokenID uint64) (string, error) {
 	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTApprove, []string{fmt.Sprintf("%d", tokenID)})
+	if err != nil {
+		return "", err
+	}
+	return key, nil
+}
+
+// GetTokenApprovedKey .
+func GetTokenApprovedKeyCouchdb(ctx contractapi.TransactionContextInterface, tokenID string) (string, error) {
+	key, err := ctx.GetStub().CreateCompositeKey(KeyPrefixNFTApprove, []string{fmt.Sprintf("%s", tokenID)})
 	if err != nil {
 		return "", err
 	}
