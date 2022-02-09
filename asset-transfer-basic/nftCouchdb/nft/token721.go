@@ -30,6 +30,7 @@ type BasicNFT struct {
 	Status     bool    `json:"status,omitempty"`
 	Price      float64 `json:"price,omitempty"`
 	Owner      string  `json:"owner,omitempty"`
+	OwnerName  string  `json:"ownerName,omitempty"` // 所有者名称
 }
 
 // 歌曲名称，演唱真，词作者，曲作者，确定歌曲的唯一性
@@ -167,6 +168,8 @@ func (nft *NFT) QueryMusicNFTToken(ctx contractapi.TransactionContextInterface, 
  * @Return:
  */
 func (nft *NFT) QueryNFTTokenHistory(ctx contractapi.TransactionContextInterface, tokenId string) (string, error) {
+	logger.Debugf("method = QueryNFTTokenHistory, tokenId = %s", tokenId)
+
 	tokenKey, err := GetTokenIdKey(ctx, tokenId)
 	if err != nil {
 		return "", err
@@ -503,13 +506,13 @@ func (nft *NFT) CreateMusicNFT(ctx contractapi.TransactionContextInterface, toke
 		if song.Name != "" && song.Singer != "" && song.SongWriter != "" && song.Composer != "" {
 			queryString = fmt.Sprintf("{\"selector\":{\"name\":\"%s\",\"musicType\":%d,\"singer\":\"%s\",\"songWriter\":\"%s\",\"composer\":\"%s\"}}", song.Name, song.MusicType, song.Singer, song.SongWriter, song.Composer)
 		} else {
-			return "", fmt.Errorf("we need 5 parameters to definitively query music tokenId, musicType=%d, name=%s, singer =%s, songWriter=%s, composer=%s", song.Name, song.MusicType, song.Singer, song.SongWriter, song.Composer)
+			return "", fmt.Errorf("we need 5 parameters to definitively query music tokenId, name=%s, musicType=%d, singer =%s, songWriter=%s, composer=%s", song.Name, song.MusicType, song.Singer, song.SongWriter, song.Composer)
 		}
 	} else if song.MusicType == 2 {
 		if song.Name != "" && song.Player != "" && song.Director != "" && song.Producer != "" {
 			queryString = fmt.Sprintf("{\"selector\":{\"name\":\"%s\",\"musicType\":%d,\"player\":\"%s\",\"director\":\"%s\",\"producer\":\"%s\"}}", song.Name, song.MusicType, song.Player, song.Director, song.Producer)
 		} else {
-			return "", fmt.Errorf("we need 5 parameters to definitively query music tokenId, musicType=%d, name=%s, player =%s, director=%s, producer=%s", song.Name, song.MusicType, song.Player, song.Director, song.Producer)
+			return "", fmt.Errorf("we need 5 parameters to definitively query music tokenId,  name=%s, musicType=%d, player =%s, director=%s, producer=%s", song.Name, song.MusicType, song.Player, song.Director, song.Producer)
 		}
 	} else {
 		return "", fmt.Errorf("musicType can not be null, musicType=%d", song.MusicType)
@@ -1108,7 +1111,7 @@ func (nft *NFT) OwnerOf(ctx contractapi.TransactionContextInterface, tokenId uin
 }
 
 // SafeTransferFrom 根据 tokenId 将 NFT从 from 转移到 to
-func (nft *NFT) SafeTransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, tokenId uint64, data []byte) error {
+func (nft *NFT) SafeTransferFrom(ctx contractapi.TransactionContextInterface, from string, to string, tokenId uint64, data string) error {
 	if !nft.canTransfer(ctx, from, tokenId) {
 		return errors.New("can not transfer")
 	}
@@ -1116,11 +1119,13 @@ func (nft *NFT) SafeTransferFrom(ctx contractapi.TransactionContextInterface, fr
 }
 
 // SafeTransferFrom 根据 tokenId 将 NFT从 from 转移到 to
-func (nft *NFT) SafeTransferFromCouchdb(ctx contractapi.TransactionContextInterface, from string, to string, tokenId string, data []byte) error {
+func (nft *NFT) SafeTransferFromCouchdb(ctx contractapi.TransactionContextInterface, from string, to string, tokenId string, data string) error {
+	logger.Debugf("method = SafeTransferFromCouchdb, from = %s, to = %s, tokenId = %s, data = %s", from, to, tokenId, data)
+
 	if !nft.canTransferCouchdb(ctx, from, tokenId) {
 		return errors.New("can not transfer")
 	}
-	return nft.TransferFromCouchdb(ctx, from, to, tokenId)
+	return nft.TransferFromCouchdb(ctx, from, to, tokenId, data)
 }
 
 // TransferFrom 根据 tokenId 将 NFT从 from 转移到 to
@@ -1153,7 +1158,9 @@ func (nft *NFT) TransferFrom(ctx contractapi.TransactionContextInterface, from s
 }
 
 // TransferFromCouchdb 根据 tokenId 将 NFT从 from 转移到 to
-func (nft *NFT) TransferFromCouchdb(ctx contractapi.TransactionContextInterface, from string, to string, tokenId string) error {
+func (nft *NFT) TransferFromCouchdb(ctx contractapi.TransactionContextInterface, from, to, tokenId, nickName string) error {
+	logger.Debugf("method = TransferFromCouchdb, from = %s, to = %s, tokenId = %s", from, to, tokenId)
+
 	key, err := GetTokenIdKey(ctx, tokenId)
 	if err != nil {
 		logger.Error(GetErrorStackf(err, fmt.Sprintf("get token key error, tokenId = %s", tokenId)))
@@ -1174,6 +1181,7 @@ func (nft *NFT) TransferFromCouchdb(ctx contractapi.TransactionContextInterface,
 	}
 
 	nft721.Owner = to
+	nft721.OwnerName = nickName
 
 	marshal, err := json.Marshal(nft721)
 	if err != nil {
@@ -1241,11 +1249,39 @@ func (nft *NFT) Approve(ctx contractapi.TransactionContextInterface, approved st
 func (nft *NFT) ApproveCouchdb(ctx contractapi.TransactionContextInterface, approved string, tokenId string) error {
 	logger.Debugf("method = %s, approved = %s, tokenId = %s", "ApproveCouchdb", approved, tokenId)
 
-	key, err := GetTokenApprovedKeyCouchdb(ctx, tokenId)
+	// 保证 owner 和 sender 一致
+	sender, err := getSender(ctx)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "get sender error"))
+		return errors.WithMessagef(err, "get sender error")
+	}
+	key, err := GetTokenIdKey(ctx, tokenId)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "create token key error, tokenId = %s", tokenId))
+		return errors.WithMessagef(err, "create token key error, tokenId = %s", tokenId)
+	}
+	state, err := ctx.GetStub().GetState(key)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "could find any record in the ledger"))
+		return errors.WithMessagef(err, "could find any record in the ledger")
+	}
+	nft721 := BasicNFT{}
+	err = json.Unmarshal(state, &nft721)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "json unmarshal error, data = %s", string(state)))
+		return errors.WithMessagef(err, "json unmarshal error, data = %s", string(state))
+	}
+
+	if nft721.Owner != sender {
+		logger.Error(GetErrorStackf(nil, "token does not owned by sender, tokenId = %d, sender= %s ", tokenId, sender))
+		return fmt.Errorf("token does not owned by sender, tokenId = %d, sender= %s ", tokenId, sender)
+	}
+
+	key1, err := GetTokenApprovedKeyCouchdb(ctx, tokenId)
 	if err != nil {
 		return err
 	}
-	return ctx.GetStub().PutState(key, []byte(approved))
+	return ctx.GetStub().PutState(key1, []byte(approved))
 }
 
 /*
@@ -1370,13 +1406,13 @@ func (nft *NFT) canTransferCouchdb(ctx contractapi.TransactionContextInterface, 
 	}
 
 	if nft721.Owner != from {
-		fmt.Errorf("token does not owned by from, tokenId = %d, from= %s ", tokenId, from)
+		logger.Error(GetErrorStackf(nil, "token does not owned by from, tokenId = %d, from= %s ", tokenId, from))
 		return false
 	}
 
 	isOwner, err := checkSender(ctx, from)
 	if err != nil {
-		fmt.Printf("checkSender error: %s", err.Error())
+		logger.Error(GetErrorStackf(err, "checkSender error"))
 		return false
 	}
 	// NFT 拥有者
@@ -1387,7 +1423,7 @@ func (nft *NFT) canTransferCouchdb(ctx contractapi.TransactionContextInterface, 
 	// NFT 授权操作人
 	approved, err := nft.GetApprovedCouchdb(ctx, tokenId)
 	if err != nil {
-		fmt.Printf("GetApproved error: %s", err.Error())
+		logger.Error(GetErrorStackf(err, "GetApproved error"))
 		return false
 	}
 	sender, _ := getSender(ctx)
@@ -1397,7 +1433,7 @@ func (nft *NFT) canTransferCouchdb(ctx contractapi.TransactionContextInterface, 
 	// 所有资产授权操作人
 	approvedAll, err := nft.IsApprovedForAll(ctx, nft721.Owner, sender)
 	if err != nil {
-		fmt.Printf("IsApprovedForAll error: %s", err.Error())
+		logger.Error(GetErrorStackf(err, "IsApprovedForAll error"))
 		return false
 	}
 	if approvedAll {
