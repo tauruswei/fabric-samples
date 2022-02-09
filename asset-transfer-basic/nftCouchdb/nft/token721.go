@@ -274,7 +274,7 @@ func (nft *NFT) QueryMusicDelegatedToken(ctx contractapi.TransactionContextInter
  * @Return:
  */
 func (nft *NFT) CreateMusicContract(ctx contractapi.TransactionContextInterface, tokenId string, contractType int, data string) (string, error) {
-	logger.Debugf("method = %s, contractType = %d, data = %s, tokenId = %d", "MintMusicContract", contractType, data, tokenId)
+	logger.Debugf("method = %s, contractType = %d, data = %s, tokenId = %s", "MintMusicContract", contractType, data, tokenId)
 	tokenIdKey, err := GetContractKey(ctx, tokenId)
 	if err != nil {
 		return "", err
@@ -284,7 +284,7 @@ func (nft *NFT) CreateMusicContract(ctx contractapi.TransactionContextInterface,
 		return "", err
 	}
 	if contractBytes != nil {
-		return "", fmt.Errorf("tokenId = %d is already assigned", tokenId)
+		return "", fmt.Errorf("tokenId = %s is already assigned", tokenId)
 	}
 	sender, err := getSender(ctx)
 	if err != nil {
@@ -401,7 +401,7 @@ func (nft *NFT) CreateMusicDelegatedContract(ctx contractapi.TransactionContextI
 		return "", err
 	}
 	if contractBytes != nil {
-		return "", fmt.Errorf("tokenId = %d is already assigned", tokenId)
+		return "", fmt.Errorf("tokenId = %s is already assigned", tokenId)
 	}
 	sender, err := getSender(ctx)
 	if err != nil {
@@ -487,7 +487,7 @@ func (nft *NFT) CreateMusicNFT(ctx contractapi.TransactionContextInterface, toke
 		return "", err
 	}
 	if nftTokenBytes != nil {
-		return "", fmt.Errorf("tokenId = %d is already assigned", tokenId)
+		return "", fmt.Errorf("tokenId = %s is already assigned", tokenId)
 	}
 
 	sender, err := nft.GetSender(ctx)
@@ -1273,8 +1273,8 @@ func (nft *NFT) ApproveCouchdb(ctx contractapi.TransactionContextInterface, appr
 	}
 
 	if nft721.Owner != sender {
-		logger.Error(GetErrorStackf(nil, "token does not owned by sender, tokenId = %d, sender= %s ", tokenId, sender))
-		return fmt.Errorf("token does not owned by sender, tokenId = %d, sender= %s ", tokenId, sender)
+		logger.Error(GetErrorStackf(nil, "token does not owned by sender, tokenId = %s, sender= %s ", tokenId, sender))
+		return fmt.Errorf("token does not owned by sender, tokenId = %s, sender= %s ", tokenId, sender)
 	}
 
 	key1, err := GetTokenApprovedKeyCouchdb(ctx, tokenId)
@@ -1406,7 +1406,7 @@ func (nft *NFT) canTransferCouchdb(ctx contractapi.TransactionContextInterface, 
 	}
 
 	if nft721.Owner != from {
-		logger.Error(GetErrorStackf(nil, "token does not owned by from, tokenId = %d, from= %s ", tokenId, from))
+		logger.Error(GetErrorStackf(nil, "token does not owned by from, tokenId = %s, from= %s ", tokenId, from))
 		return false
 	}
 
