@@ -162,6 +162,12 @@ func (nft *NFT) QueryMusicNFTToken(ctx contractapi.TransactionContextInterface, 
 	return string(queryResults), nil
 }
 
+type TransferHistory struct {
+	TxId      string `json:"txId"`
+	Value     string `json:"value"`
+	Timestamp int64  `json:"timestamp"`
+}
+
 /*
  * @Desc: 查询 721 token 的 history
  * @Param:
@@ -175,28 +181,36 @@ func (nft *NFT) QueryNFTTokenHistory(ctx contractapi.TransactionContextInterface
 		return "", err
 	}
 	resultsIterator, err := ctx.GetStub().GetHistoryForKey(tokenKey)
-	var buffer bytes.Buffer
+	//var buffer bytes.Buffer
 
-	buffer.WriteString("[")
+	//buffer.WriteString("[")
 
-	bArrayMemberAlreadyWritten := false
+	//bArrayMemberAlreadyWritten := false
+
+	histories := []TransferHistory{}
 	for resultsIterator.HasNext() {
 		queryResponse, err := resultsIterator.Next()
 		if err != nil {
 			return "", err
 		}
+		history := TransferHistory{TxId: queryResponse.TxId, Value: string(queryResponse.Value), Timestamp: queryResponse.Timestamp.Seconds}
+		histories = append(histories, history)
 		// Add a comma before array members, suppress it for the first array member
-		if bArrayMemberAlreadyWritten == true {
-			buffer.WriteString(",")
-		}
-
-		buffer.WriteString(string(queryResponse.Value))
-		bArrayMemberAlreadyWritten = true
+		//if bArrayMemberAlreadyWritten == true {
+		//	buffer.WriteString(",")
+		//}
+		//buffer.WriteString(string(queryResponse.Value))
+		//bArrayMemberAlreadyWritten = true
 	}
-	buffer.WriteString("]")
-	logger.Debugf("buffer = %+v", string(buffer.Bytes()))
-
-	return string(buffer.Bytes()), nil
+	//buffer.WriteString("]")
+	//logger.Debugf("buffer = %+v", string(buffer.Bytes()))
+	marshal, err := json.Marshal(histories)
+	if err != nil {
+		logger.Error(GetErrorStackf(err, "json marshal error, history = %+v", histories))
+		return "", errors.WithMessagef(err, "json marshal error, history = %+v", histories)
+	}
+	logger.Debugf("history: %s", string(marshal))
+	return string(marshal), nil
 }
 
 /*
