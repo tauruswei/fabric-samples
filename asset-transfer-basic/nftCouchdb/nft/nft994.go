@@ -1,14 +1,8 @@
 package nft
 
 import (
-	"crypto/ecdsa"
-	"crypto/x509"
-	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
 	"strings"
 	"time"
@@ -83,7 +77,9 @@ func (nft *NFT) QueryMusicDelegatedTokens(ctx contractapi.TransactionContextInte
  * @Date: 2021/12/22 1:57 下午
  */
 // Mint 铸造 DNFT
-func (nft *NFT) CreateMusicDelegatedNFT(ctx contractapi.TransactionContextInterface, tokenIds, dtokenIds []string, contractId, ownerName, publicKey string, expiration []string) error {
+func (nft *NFT) CreateMusicDelegatedNFT(ctx contractapi.TransactionContextInterface, tokenIds, dtokenIds []string, contractId, ownerName, ownerAddr string, expiration []string) error {
+
+	logger.Debugf("method = %s, contractId = %s", "CreateMusicDelegatedNFT", contractId)
 
 	if len(tokenIds) != len(dtokenIds) && len(tokenIds) != len(expiration) {
 		return fmt.Errorf("tokenId and dtokenId are expected to have the same length, tokenId = %+v, dtokenId = %+v", tokenIds, dtokenIds)
@@ -122,20 +118,21 @@ func (nft *NFT) CreateMusicDelegatedNFT(ctx contractapi.TransactionContextInterf
 		//	return err
 		//}
 		// 根据公钥获取 owner 地址
-		pubPemBytes, err := base64.StdEncoding.DecodeString(publicKey)
-		if err != nil {
-			return err
-		}
-		block, _ := pem.Decode(pubPemBytes)
-
-		key, err := x509.ParsePKIXPublicKey(block.Bytes)
-
-		pubKey, ok := key.(*ecdsa.PublicKey)
-		if !ok {
-			return fmt.Errorf("parse public key error，publicKey = %s", publicKey)
-		}
-		pubBytes := crypto.FromECDSAPub(pubKey)
-		owner := common.BytesToAddress(crypto.Keccak256(pubBytes[1:])[12:]).String()
+		//pubPemBytes, err := base64.StdEncoding.DecodeString(publicKey)
+		//if err != nil {
+		//	return err
+		//}
+		//block, _ := pem.Decode(pubPemBytes)
+		//
+		//key, err := x509.ParsePKIXPublicKey(block.Bytes)
+		//
+		//pubKey, ok := key.(*ecdsa.PublicKey)
+		//if !ok {
+		//	return fmt.Errorf("parse public key error，publicKey = %s", publicKey)
+		//}
+		//pubBytes := crypto.FromECDSAPub(pubKey)
+		//owner := common.BytesToAddress(crypto.Keccak256(pubBytes[1:])[12:]).String()
+		owner := ownerAddr
 
 		logger.Debugf("address = %s", owner)
 

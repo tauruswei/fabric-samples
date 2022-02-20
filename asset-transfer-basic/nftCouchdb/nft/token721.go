@@ -462,6 +462,7 @@ func (nft *NFT) CreateMusicDelegatedContract(ctx contractapi.TransactionContextI
  * @Return:
  */
 func (nft *NFT) QueryContractDetail(ctx contractapi.TransactionContextInterface, tokenId string) (string, error) {
+	logger.Debugf("method = QueryContractDetail, tokenId = %s", tokenId)
 
 	// todo 权限的判断
 
