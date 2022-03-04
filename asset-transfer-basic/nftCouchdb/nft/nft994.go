@@ -1,9 +1,16 @@
 package nft
 
 import (
+	"crypto/ecdsa"
+	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/hyperledger/fabric-contract-api-go/contractapi"
+	"github.com/pkg/errors"
 	"strings"
 	"time"
 )
@@ -77,11 +84,27 @@ func (nft *NFT) QueryMusicDelegatedTokens(ctx contractapi.TransactionContextInte
  * @Date: 2021/12/22 1:57 下午
  */
 // Mint 铸造 DNFT
-func (nft *NFT) CreateMusicDelegatedNFT(ctx contractapi.TransactionContextInterface, tokenIds, dtokenIds []string, contractId, ownerName, ownerAddr string, expiration []string) error {
+func (nft *NFT) CreateMusicDelegatedNFT(ctx contractapi.TransactionContextInterface, tokenIds, dtokenIds []string, contractId, ownerName, publicKey string, expiration []string) error {
 
 	logger.Debugf("method = %s, contractId = %s", "CreateMusicDelegatedNFT", contractId)
+	if len(tokenIds) != len(expiration) {
+		detail, err := nft.QueryContractDetail(ctx, contractId)
+		if err != nil {
+			logger.Error(GetErrorStackf(err, "query contract detail error"))
+			return errors.WithMessagef(err, "query contract detail error")
+		}
+		contract := &Contract{}
+		err = json.Unmarshal([]byte(detail), contract)
+		if err != nil {
+			logger.Error(GetErrorStackf(err, "unmarshal error, contract = %s", detail))
+			return errors.WithMessagef(err, "unmarshal error, contract = %s", detail)
+		}
+		for _, _ = range tokenIds {
+			expiration = append(expiration, contract.DelegateEndtDate)
+		}
+	}
 
-	if len(tokenIds) != len(dtokenIds) && len(tokenIds) != len(expiration) {
+	if len(tokenIds) != len(dtokenIds) {
 		return fmt.Errorf("tokenId and dtokenId are expected to have the same length, tokenId = %+v, dtokenId = %+v", tokenIds, dtokenIds)
 	}
 
@@ -117,22 +140,22 @@ func (nft *NFT) CreateMusicDelegatedNFT(ctx contractapi.TransactionContextInterf
 		//if err != nil {
 		//	return err
 		//}
-		// 根据公钥获取 owner 地址
-		//pubPemBytes, err := base64.StdEncoding.DecodeString(publicKey)
-		//if err != nil {
-		//	return err
-		//}
-		//block, _ := pem.Decode(pubPemBytes)
-		//
-		//key, err := x509.ParsePKIXPublicKey(block.Bytes)
-		//
-		//pubKey, ok := key.(*ecdsa.PublicKey)
-		//if !ok {
-		//	return fmt.Errorf("parse public key error，publicKey = %s", publicKey)
-		//}
-		//pubBytes := crypto.FromECDSAPub(pubKey)
-		//owner := common.BytesToAddress(crypto.Keccak256(pubBytes[1:])[12:]).String()
-		owner := ownerAddr
+		//根据公钥获取 owner 地址
+		pubPemBytes, err := base64.StdEncoding.DecodeString(publicKey)
+		if err != nil {
+			return err
+		}
+		block, _ := pem.Decode(pubPemBytes)
+
+		key, err := x509.ParsePKIXPublicKey(block.Bytes)
+
+		pubKey, ok := key.(*ecdsa.PublicKey)
+		if !ok {
+			return fmt.Errorf("parse public key error，publicKey = %s", publicKey)
+		}
+		pubBytes := crypto.FromECDSAPub(pubKey)
+		owner := common.BytesToAddress(crypto.Keccak256(pubBytes[1:])[12:]).String()
+		//owner := ownerAddr
 
 		logger.Debugf("address = %s", owner)
 

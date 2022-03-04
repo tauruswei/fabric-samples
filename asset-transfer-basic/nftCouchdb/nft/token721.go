@@ -27,10 +27,11 @@ type BasicNFT struct {
 	UriPicture string  `json:"uriPicture,omitempty"` // 图片的网址
 	UriVideo   string  `json:"uriVideo,omitempty"`   // 音频的网址
 	Desc       string  `json:"desc,omitempty"`
-	Status     bool    `json:"status,omitempty"`
+	Status     int     `json:"status,omitempty"` // nft 状态   0 未上架； 1 正在卖； 2 已卖出
 	Price      float64 `json:"price,omitempty"`
 	Owner      string  `json:"owner,omitempty"`
 	OwnerName  string  `json:"ownerName,omitempty"` // 所有者名称
+	NickName   string  `json:"nickName ,omitempty"` // 提交交易的用户。前端传参数，会把 nickname 传递过来，该参数暂时没用
 }
 
 // 歌曲名称，演唱真，词作者，曲作者，确定歌曲的唯一性
@@ -199,7 +200,7 @@ func (nft *NFT) QueryNFTTokenHistory(ctx contractapi.TransactionContextInterface
 		//if bArrayMemberAlreadyWritten == true {
 		//	buffer.WriteString(",")
 		//}
-		//buffer.WriteString(string(queryResponse.Value))
+		logger.Debugf(string(queryResponse.Value))
 		//bArrayMemberAlreadyWritten = true
 	}
 	//buffer.WriteString("]")
@@ -541,7 +542,7 @@ func (nft *NFT) CreateMusicNFT(ctx contractapi.TransactionContextInterface, toke
 		logger.Error(GetErrorStackf(nil, "song already exists, tokenId = %s, data = %s", tokenId, data))
 		return "", fmt.Errorf("song already exists, tokenId = %s, data = %s", tokenId, data)
 	}
-
+	song.TokenId = tokenId
 	song.Owner = sender
 
 	//iterator, err := ctx.GetStub().GetStateByPartialCompositeKey(KeyPrefixNFT, []string{fmt.Sprintf("%d", tokenId)})
