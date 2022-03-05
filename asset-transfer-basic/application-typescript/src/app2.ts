@@ -7,13 +7,9 @@ import { Gateway, GatewayOptions } from 'fabric-network';
 import * as path from 'path';
 import { buildCCPOrg1, buildWallet, prettyJSONString } from './utils/AppUtil';
 import { buildCAClient, enrollAdmin, registerAndEnrollUser } from './utils/CAUtil';
-
-const channelName = 'test1';
-const chaincodeName = 'bnft';
-const mspOrg1 = 'NPC';
 // const walletPath = path.join(__dirname, 'wallet');
 const walletPath = path.join(__dirname, 'mywallet');
-const org1UserId = 'string';
+const org1UserId = 'user01';
 // const connectionPath = '/Users/fengxiaoxiao/work/go/src/github.com/hyperledger/fabric-samples/test-network/organizations/peerOrganizations/org1.example.com/connection-org1.json';
 const connectionPath = '/Users/fengxiaoxiao/work/go/src/github.com/hyperledger/fabric-samples/asset-transfer-basic/application-typescript/src/connection-npc.json';
 const certPath = '../mywallet/baasCertPem';
@@ -70,7 +66,9 @@ async function main() {
     try {
         // build an in memory object with the network configuration (also known as a connection profile)
         const ccp = buildCCPOrg1(connectionPath);
-
+        const channelName = ccp.client.channelName;
+        const chaincodeName = ccp.client.contractName;
+        const mspOrg1 = ccp.client.organization;
         // build an instance of the fabric ca services client based on
         // the information in the network configuration
         // const caClient = buildCAClient(ccp, 'ca.org1.example.com');
@@ -103,6 +101,9 @@ async function main() {
             // submit transactions and query. All transactions submitted by this gateway will be
             // signed by this user using the credentials stored in the wallet.
             await gateway.connect(ccp, gatewayOpts);
+            //前端签名
+            const signature =  gateway.identityContext.sign(Buffer.from('zhangjie'));
+            console.log(signature.toString("base64"));
 
             // Build a network instance based on the channel where the smart contract is deployed
             const network = await gateway.getNetwork(channelName);
