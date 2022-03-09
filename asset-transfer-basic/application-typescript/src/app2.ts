@@ -119,7 +119,13 @@ async function main() {
             let res = await contract.submitTransaction('GetSender');
             // console.log('*** Result: committed');
             console.log(res.toString());
-            console.log(`*** Result: ${prettyJSONString(res.toString())}`);
+            // console.log(`*** Result: ${prettyJSONString(res.toString())}`);
+
+            // Let's try a query type operation (function).
+            // This will be sent to just one peer and the results will be shown.
+            console.log('\n--> Evaluate Transaction: GetAllAssets, function returns all the current assets on the ledger');
+            let result1 = await contract.evaluateTransaction('DelegatedNFTListInContact',"Key5649647975230235400533568667653377243333705077588003706215434274","100","");
+            console.log(`*** Result: ${prettyJSONString(result1.toString())}`);
 
             // Let's try a query type operation (function).
             // This will be sent to just one peer and the results will be shown.

@@ -335,8 +335,8 @@ func (nft *NFT) canMintDnft(ctx contractapi.TransactionContextInterface, tokenID
 	//}
 	compare := strings.Compare(dtoken.Expiration, expiration)
 	if compare < 0 {
-		fmt.Printf("dtoken's expiration = %s is after parent token's expiration = %s, error: %s", dtoken.Expiration, expiration, err.Error())
-		return "", fmt.Errorf("dtoken's expiration = %s is after parent token's expiration = %s, error: %s", dtoken.Expiration, expiration, err.Error())
+		logger.Error(GetErrorStackf(nil, "dtoken's expiration = %s is after parent token's expiration = %s", dtoken.Expiration, expiration))
+		return "", fmt.Errorf("dtoken's expiration = %s is after parent token's expiration = %s", dtoken.Expiration, expiration)
 
 	}
 	return dtoken.RootTokenId, nil
