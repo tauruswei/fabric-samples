@@ -84,7 +84,7 @@ func (nft *NFT) QueryMusicDelegatedTokens(ctx contractapi.TransactionContextInte
  * @Date: 2021/12/22 1:57 下午
  */
 // Mint 铸造 DNFT
-func (nft *NFT) CreateMusicDelegatedNFT(ctx contractapi.TransactionContextInterface, tokenIds, dtokenIds []string, contractId, ownerName, publicKey string, expiration []string) error {
+func (nft *NFT) CreateMusicDelegatedNFT(ctx contractapi.TransactionContextInterface, tokenIds, dtokenIds []string, contractId, ownerName, publicKey string, expiration []string, messageTokenId string, userType int, musicIds []int) error {
 
 	logger.Debugf("method = %s, contractId = %s", "CreateMusicDelegatedNFT", contractId)
 	if len(tokenIds) != len(expiration) {
@@ -335,8 +335,8 @@ func (nft *NFT) canMintDnft(ctx contractapi.TransactionContextInterface, tokenID
 	//}
 	compare := strings.Compare(dtoken.Expiration, expiration)
 	if compare < 0 {
-		logger.Error(GetErrorStackf(nil, "dtoken's expiration = %s is after parent token's expiration = %s", dtoken.Expiration, expiration))
-		return "", fmt.Errorf("dtoken's expiration = %s is after parent token's expiration = %s", dtoken.Expiration, expiration)
+		logger.Error(GetErrorStackf(nil, "dtoken's expiration = %s is after parent token's expiration = %s", expiration, dtoken.Expiration))
+		return "", fmt.Errorf("dtoken's expiration = %s is after parent token's expiration = %s", expiration, dtoken.Expiration)
 
 	}
 	return dtoken.RootTokenId, nil
