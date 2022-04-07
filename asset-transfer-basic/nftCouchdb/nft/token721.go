@@ -517,31 +517,129 @@ func (nft *NFT) CreateMusicNFT(ctx contractapi.TransactionContextInterface, toke
 		return "", err
 	}
 
-	var queryString string
-	if song.MusicType == 1 {
-		if song.Name != "" && song.Singer != "" && song.SongWriter != "" && song.Composer != "" {
-			queryString = fmt.Sprintf("{\"selector\":{\"name\":\"%s\",\"musicType\":%d,\"singer\":\"%s\",\"songWriter\":\"%s\",\"composer\":\"%s\"}}", song.Name, song.MusicType, song.Singer, song.SongWriter, song.Composer)
+	if song.Label == "音乐" {
+		var queryString string
+		if song.MusicType == 1 {
+			if song.Name != "" && song.Singer != "" && song.SongWriter != "" && song.Composer != "" {
+				queryString = fmt.Sprintf("{\"selector\":{\"name\":\"%s\",\"musicType\":%d,\"singer\":\"%s\",\"songWriter\":\"%s\",\"composer\":\"%s\"}}", song.Name, song.MusicType, song.Singer, song.SongWriter, song.Composer)
+			} else {
+				return "", fmt.Errorf("we need 5 parameters to definitively query music tokenId, name=%s, musicType=%d, singer =%s, songWriter=%s, composer=%s", song.Name, song.MusicType, song.Singer, song.SongWriter, song.Composer)
+			}
+		} else if song.MusicType == 2 {
+			if song.Name != "" && song.Player != "" && song.Director != "" && song.Producer != "" {
+				queryString = fmt.Sprintf("{\"selector\":{\"name\":\"%s\",\"musicType\":%d,\"player\":\"%s\",\"director\":\"%s\",\"producer\":\"%s\"}}", song.Name, song.MusicType, song.Player, song.Director, song.Producer)
+			} else {
+				return "", fmt.Errorf("we need 5 parameters to definitively query music tokenId,  name=%s, musicType=%d, player =%s, director=%s, producer=%s", song.Name, song.MusicType, song.Player, song.Director, song.Producer)
+			}
 		} else {
-			return "", fmt.Errorf("we need 5 parameters to definitively query music tokenId, name=%s, musicType=%d, singer =%s, songWriter=%s, composer=%s", song.Name, song.MusicType, song.Singer, song.SongWriter, song.Composer)
+			return "", fmt.Errorf("musicType can not be null, musicType=%d", song.MusicType)
 		}
-	} else if song.MusicType == 2 {
-		if song.Name != "" && song.Player != "" && song.Director != "" && song.Producer != "" {
-			queryString = fmt.Sprintf("{\"selector\":{\"name\":\"%s\",\"musicType\":%d,\"player\":\"%s\",\"director\":\"%s\",\"producer\":\"%s\"}}", song.Name, song.MusicType, song.Player, song.Director, song.Producer)
-		} else {
-			return "", fmt.Errorf("we need 5 parameters to definitively query music tokenId,  name=%s, musicType=%d, player =%s, director=%s, producer=%s", song.Name, song.MusicType, song.Player, song.Director, song.Producer)
+		logger.Debugf("queryString = %s", queryString)
+		queryResults, err := getQueryResultForQueryString(ctx, queryString)
+		if err != nil {
+			return "", err
 		}
-	} else {
-		return "", fmt.Errorf("musicType can not be null, musicType=%d", song.MusicType)
+		if string(queryResults) != "[]" {
+			logger.Error(GetErrorStackf(nil, "song already exists, tokenId = %s, data = %s", tokenId, data))
+			return "", fmt.Errorf("song already exists, tokenId = %s, data = %s", tokenId, data)
+		}
 	}
-	logger.Debugf("queryString = %s", queryString)
-	queryResults, err := getQueryResultForQueryString(ctx, queryString)
+	song.TokenId = tokenId
+	song.Owner = sender
+
+	//iterator, err := ctx.GetStub().GetStateByPartialCompositeKey(KeyPrefixNFT, []string{fmt.Sprintf("%d", tokenId)})
+	//defer iterator.Close()
+	//if iterator.HasNext() {
+	//	return fmt.Errorf("tokenId = %d is already assigned", tokenId)
+	//}
+	//fmt.Printf("Mint token %d for %s ,uri: %s\n", tokenId, owner, uri)
+	//nameKey, err := GetTokenNameKey(ctx, tokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//err = ctx.GetStub().PutState(nameKey, []byte(name))
+	//if err != nil {
+	//	return err
+	//}
+	//labelKey, err := GetTokenLabelKey(ctx, tokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//err = ctx.GetStub().PutState(labelKey, []byte(label))
+	//if err != nil {
+	//	return err
+	//}
+	//uriKey, err := GetTokenURIKey(ctx, tokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//err = ctx.GetStub().PutState(uriKey, []byte(uri))
+	//if err != nil {
+	//	return err
+	//}
+	//descKey, err := GetTokenDescKey(ctx, tokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//err = ctx.GetStub().PutState(descKey, []byte(desc))
+	//if err != nil {
+	//	return err
+	//}
+
+	//
+	marshal, err := json.Marshal(song)
 	if err != nil {
 		return "", err
 	}
-	if string(queryResults) != "[]" {
-		logger.Error(GetErrorStackf(nil, "song already exists, tokenId = %s, data = %s", tokenId, data))
-		return "", fmt.Errorf("song already exists, tokenId = %s, data = %s", tokenId, data)
+	err = ctx.GetStub().PutState(tokenIdKey, marshal)
+	if err != nil {
+		return "", err
 	}
+	return tokenId, nil
+	//if err != nil {
+	//	return err
+	//}
+	//
+	//// 将 nft token 和用户绑定
+	//err = nft.addToken(ctx, owner, tokenId)
+	//if err != nil {
+	//	return err
+	//}
+	//// 修改 该用户的 token 数量
+	//err = nft.increaseToken(ctx, owner)
+	//if err != nil {
+	//	return err
+	//}
+	//totalKey, _ := GetTokenCountKey(ctx)
+	//// 修改 token 总量
+	//return nft.calcCount(ctx, totalKey, true)
+}
+
+func (nft *NFT) CreateNFT(ctx contractapi.TransactionContextInterface, tokenId string, data string) (string, error) {
+	logger.Debugf("method = CreateNFT, tokenId = %s, data = %s", tokenId, data)
+	tokenIdKey, err := GetTokenIdKey(ctx, tokenId)
+	if err != nil {
+		return "", err
+	}
+	nftTokenBytes, err := ctx.GetStub().GetState(tokenIdKey)
+	if err != nil {
+		return "", err
+	}
+	if nftTokenBytes != nil {
+		return "", fmt.Errorf("tokenId = %s is already assigned", tokenId)
+	}
+
+	sender, err := nft.GetSender(ctx)
+	if err != nil {
+		return "", err
+	}
+
+	song := Song{}
+	err = json.Unmarshal([]byte(data), &song)
+	if err != nil {
+		return "", err
+	}
+
 	song.TokenId = tokenId
 	song.Owner = sender
 
