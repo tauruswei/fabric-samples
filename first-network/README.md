@@ -1,7 +1,7 @@
 ## Build Your First Network (BYFN)
 
-The directions for using this are documented in the Hyperledger Fabric
-["Build Your First Network"](http://hyperledger-fabric.readthedocs.io/en/latest/build_network.html) tutorial.
+- 1、镜像版本是1.4.2, tag 不用 latest
+- 2、适配 apple silicon
+- 3、添加组织 bash eyfn.sh up
 
-*NOTE:* After navigating to the documentation, choose the documentation version that matches your version of Fabric
 
