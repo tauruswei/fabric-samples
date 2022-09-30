@@ -38,11 +38,12 @@ echo "========= Creating config transaction to add org3 to network =========== "
 echo
 
 echo "Installing jq"
+set -x
 apt-get -y update && apt-get -y install jq
 
 # Fetch the config for the channel, writing it to config.json
 fetchChannelConfig ${CHANNEL_NAME} config.json
-
+set +x
 # Modify the configuration to append the new org
 set -x
 jq -s '.[0] * {"channel_group":{"groups":{"Application":{"groups": {"Org3MSP":.[1]}}}}}' config.json ./channel-artifacts/org3.json > modified_config.json

@@ -112,7 +112,9 @@ function networkUp () {
   echo "###############################################################"
   echo "############### Have Org3 peers join network ##################"
   echo "###############################################################"
+  set -x
   docker exec Org3cli ./scripts/step2org3.sh $CHANNEL_NAME $CLI_DELAY $LANGUAGE $CLI_TIMEOUT $VERBOSE
+  set -x
   if [ $? -ne 0 ]; then
     echo "ERROR !!!! Unable to have Org3 peers join network"
     exit 1
@@ -121,7 +123,9 @@ function networkUp () {
   echo "###############################################################"
   echo "##### Upgrade chaincode to have Org3 peers on the network #####"
   echo "###############################################################"
+  set -x
   docker exec cli ./scripts/step3org3.sh $CHANNEL_NAME $CLI_DELAY $LANGUAGE $CLI_TIMEOUT $VERBOSE
+  set -x
   if [ $? -ne 0 ]; then
     echo "ERROR !!!! Unable to add Org3 peers on network"
     exit 1
@@ -252,7 +256,7 @@ COMPOSE_FILE_RAFT2=docker-compose-etcdraft2.yaml
 # use golang as the default language for chaincode
 LANGUAGE=golang
 # default image tag
-IMAGETAG="latest"
+IMAGETAG="1.4.2"
 
 # Parse commandline args
 if [ "$1" = "-m" ];then	# supports old usage, muscle memory is powerful!
