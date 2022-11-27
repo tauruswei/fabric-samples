@@ -1,198 +1,160 @@
-# Asset-Transfer-Basic as an external service
+# 国密 chaincode as an external service
 
-This sample provides an introduction to how to use external builder and launcher scripts to run chaincode as an external service to your peer. For more information, see the [Chaincode as an external service](https://hyperledger-fabric.readthedocs.io/en/latest/cc_launcher.html) topic in the Fabric documentation.
+###1、修改 core.yaml
 
-**Note:** each organization in a real network would need to setup and host their own instance of the external service. For simplification purpose, in this sample we use the same instance for both organizations.
+  打开 `fabric-samples/config/core.yaml`修改 the field `externalBuilders` as the following:
 
-## Setting up the external builder and launcher
+   ```bash
+   # 注意修改合约 chaincode 的地址
+    externalBuilders:
+        - path: /opt/gopath/src/github.com/hyperledger/fabric-samples/asset-transfer-basic/chaincode-gm/sampleBuilder
+          name: external-sample-builder
+   ```
 
-打开 `fabric-samples/config/core.yaml` 
-修改 the field `externalBuilders` as the following:
-```
-externalBuilders:
-    - path: /opt/gopath/src/github.com/hyperledger/fabric-samples/asset-transfer-basic/chaincode-external/sampleBuilder
-      name: external-sample-builder
-```
-This configuration sets the name of the external builder as `external-sample-builder`, and the path of the builder to the scripts provided in this sample. Note that this is the path within the peer container, not your local machine.
+###2、修改 docker-compose-test-net.yaml
 
-打开 `test-network/docker/docker-compose-test-net.yaml`
-容器 `peer0.org1.example.com` 和 `peer0.org2.example.com` 新增如下两行挂载:
+  修改 `test-network/docker/docker-compose-test-net.yaml`，容器 `peer0.org1.example.com`和 `peer0.org2.example.com`新增如下两行挂载:
 
-```
-        - ../..:/opt/gopath/src/github.com/hyperledger/fabric-samples
-        - ../../config/core.yaml:/etc/hyperledger/fabric/core.yaml
-```
+   ```bash
+    - ../..:/opt/gopath/src/github.com/hyperledger/fabric-samples
+    - ../../config/core.yaml:/etc/hyperledger/fabric/core.yaml
+   ```
 
-This will mount the fabric-sample builder into the peer container so that it can be found at the location specified in the config file,
-and override the peer's core.yaml config file within the fabric-peer image so that the config file modified above is used.
+###3、启动网络，并创建 channel
 
-## Packaging and installing Chaincode
+   ```bash
+    bash network.sh up createChannel
+   ```
 
-The Asset-Transfer-Basic external chaincode requires two environment variables to run, `CHAINCODE_SERVER_ADDRESS` and `CHAINCODE_ID`, which are described and set in the `chaincode.env` file.
+###4、修改 connection.json(两种情况)
+- ####（1）如果是编译器启动 合约 服务，合约地址应该设置为本机的ip
 
-The peer needs a corresponding `connection.json` configuration file so that it can connect to the external Asset-Transfer-Basic service.
+    ```bash
+    # 192.168.2.150 是我本机的 ip
+    {
+      "address": "192.168.2.150:9999",
+      "dial_timeout": "10s",
+      "tls_required":false
+    }
+    ```
 
-The address specified in the `connection.json` must correspond to the `CHAINCODE_SERVER_ADDRESS` value in `chaincode.env`, which is `asset-transfer-basic.org1.example.com:9999` in our example.
+- ####（2）如果是 docker 启动合约服务
 
-First, create a `code.tar.gz` archive containing the `connection.json` file:
+    ```bash
+    # gm 是合约的名称
+    {
+      "address": "gm:9999",
+      "dial_timeout": "10s",
+      "tls_required":false
+    }
+    ```
 
-```
-cd fabric-samples/asset-transfer-basic/chaincode-external
-tar cfz code.tar.gz connection.json
-```
+###5、修改 metadata.json
 
-Then, create the chaincode package, including the `code.tar.gz` file and the supplied `metadata.json` file:
+  ```
+  # gm 是 chaincode 的名字
+  {
+      "type": "external",
+      "label": "gm_1.0"
+  }
+  ```
 
-```
-tar cfz asset-transfer-basic-external.tgz metadata.json code.tar.gz
-```
+###6、重新打包
 
-You are now ready to use the external chaincode. We will use the `test-network` sample to get a network setup and make use of it.
+   ```bash
+   export PKGNAME = gm.tgz
+   cd fabric-samples/asset-transfer-basic/chaincode-gm
+   tar cfz code.tar.gz connection.json
+   # 注意压缩包的名称
+   tar cfz $PKGNAME metadata.json code.tar.gz
+   ```
 
-## 修改 test-network/configtx/configtx.yaml
+###7、安装合约
 
-```
-Application: &ApplicationDefaults
+   ```bash
+    cd fabric-samples/test-network
+    . ./scripts/envVar.sh
+    export PATH=${PWD}/../bin:${PWD}:$PATH
+    export FABRIC_CFG_PATH=$PWD/../config/
+    setGlobals 1
+    ../bin/peer lifecycle chaincode install ../asset-transfer-basic/chaincode-gm/$PKGNAME
+    setGlobals 2
+    ../bin/peer lifecycle chaincode install ../asset-transfer-basic/chaincode-gm/$PKGNAME
+   ```
 
-    # Organizations is the list of orgs which are defined as participants on
-    # the application side of the network
-    Organizations:
+###8、设置环境变量
 
-    # Policies defines the set of policies at this level of the config tree
-    # For Application policies, their canonical path is
-    #   /Channel/Application/<PolicyName>
-    Policies:
-        Readers:
-            Type: ImplicitMeta
-            Rule: "ANY Readers"
-        Writers:
-            Type: ImplicitMeta
-            Rule: "ANY Writers"
-        Admins:
-            Type: ImplicitMeta
-            Rule: "ANY Admins"
-        LifecycleEndorsement:
-            Type: ImplicitMeta
-            Rule: "ANY Endorsement"
-        Endorsement:
-            Type: ImplicitMeta
-            Rule: "ANY Endorsement"
-```
+  安装合约时，控制台会输出 合约的 package id ，设置环境变零 PKGID
 
-## Starting the test network
+   ```bash
+    export PKGID=gm_1.0:5d46d431e3bee1af584bc9c788aec4267597fc6c39f48bee23400c8860cee793
+   ```
 
-In a different terminal, from the `test-network` sample directory starts the network using the following command:
+  设置环境变量 CONTRACT_NAME 作为合约的名称
 
-```
-cd fabric-samples/test-network
-./network.sh up createChannel -c mychannel -ca
-```
+   ```bash
+    export CONTRACT_NAME=gm
+   ```
 
-This starts the test network and creates the channel. We will now proceed to installing our external chaincode package.
+###9、部署合约
 
-## Installing the external chaincode
+   ```bash
+    setGlobals 2
+    peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID mychannel --name $CONTRACT_NAME --version 1.0 --package-id $PKGID --sequence 1
+    
+    setGlobals 1
+    peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID mychannel --name $CONTRACT_NAME --version 1.0 --package-id $PKGID --sequence 1
+    
+    peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID mychannel --name $CONTRACT_NAME --peerAddresses localhost:7051 --tlsRootCertFiles $PWD/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt --peerAddresses localhost:9051 --tlsRootCertFiles organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt --version 1.0 --sequence 1
+   ```
 
-We can't use the `test-network/network.sh` script to install our external chaincode so we will have to do a bit more work by hand but we can still leverage part of the test-network scripts to make this easier.
+###10、启动合约服务（两种情况）
+####（1）编译器本地启动合约服务（便于调试）
+- 修改合约 main 函数中的环境变量
 
-First, get the functions to setup your environment as needed by running the following command (this assumes you are still in the `test-network` directory):
+    ```bash
+    os.Setenv("CHAINCODE_ID","gm_1.0:5d46d431e3bee1af584bc9c788aec4267597fc6c39f48bee23400c8860cee793")
+    os.Setenv("CHAINCODE_SERVER_ADDRESS","192.168.2.150:9999")
+    ```
 
-```
-. ./scripts/envVar.sh
-```
+- 启动服务
+####（2）docker 启动合约服务
+- 修改chaincode.env
 
-安装 `asset-transfer-basic-external.tar.gz` chaincode on org1:
+    ```
+    # CHAINCODE_SERVER_ADDRESS must be set to the host and port where the peer can
+    # connect to the chaincode server
+    CHAINCODE_SERVER_ADDRESS=gm:9999
+      
+    # CHAINCODE_ID must be set to the Package ID that is assigned to the chaincode
+    # on install. The `peer lifecycle chaincode queryinstalled` command can be
+    # used to get the ID after install if required
+    CHAINCODE_ID=gm_1.0:5d46d431e3bee1af584bc9c788aec4267597fc6c39f48bee23400c8860cee793
+    ```
 
-```
-export PATH=${PWD}/../bin:${PWD}:$PATH
-export FABRIC_CFG_PATH=$PWD/../config/
-setGlobals 1
-../bin/peer lifecycle chaincode install ../asset-transfer-basic/chaincode-external/asset-transfer-basic-external.tgz
-```
+- 编译镜像
 
-setGlobals simply defines a bunch of environment variables suitable to act as one organization or another, org1 or org2.
+    ```bash
+    cd fabric-samples/asset-transfer-basic/chaincode-gm
+    docker buildx build --platform linux/amd64 -t gmchaincode .
+    ```
 
-安装 `asset-transfer-basic-external.tar.gz` chaincode on org2:
+- 启动镜像
 
-```
-setGlobals 2
-../bin/peer lifecycle chaincode install ../asset-transfer-basic/chaincode-external/asset-transfer-basic-external.tgz
-```
-
-This will output the chaincode pakage identifier such as `basic_1.0:0262396ccaffaa2174bc09f750f742319c4f14d60b16334d2c8921b6842c090` that you will need to use in the following commands.
-
-新建环境变量 `PKGID=basic_1.0:0262396ccaffaa2174bc09f750f742319c4f14d60b16334d2c8921b6842c090`
-
-```
-export PKGID=basic_1.0:0262396ccaffaa2174bc09f750f742319c4f14d60b16334d2c8921b6842c090
-```
-
-你也可以通过下面的命令查询 `package-id`:
-
-```
-setGlobals 1
-../bin/peer lifecycle chaincode queryinstalled --peerAddresses localhost:7051 --tlsRootCertFiles organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt
-```
-
-切换到目录： `fabric-samples/asset-transfer-basic/chaincode-external` ,修改 `chaincode.env` ,set `CHAINCODE_ID` euqal to the
- chaincode `package-id` obtained above.
-
-
-## Running the Asset-Transfer-Basic external service
-
-切换到 `fabric-samples/asset-transfer-basic/chaincode-external` 目录,编译合约镜像:
-
-对于 amd 系统 执行下面的命令编译镜像
-
-```
-docker build -t hyperledger/asset-transfer-basic .
-```
-对于 Apple Silicon 系统 执行下面的命令编译镜像
-```
-docker buildx build --platform linux/amd64 -t hyperledger/asset-transfer-basic .
-```
-
-启动合约容器:
-
-```
-docker run -it --rm --name asset-transfer-basic.org1.example.com --hostname asset-transfer-basic.org1.example.com --env-file chaincode.env --network=docker_test hyperledger/asset-transfer-basic
-```
-
-This will start the container and start the external chaincode service within it.
-
-## 部署合约
+    ```bash
+    docker run -it --rm --name gm --hostname gm --env-file chaincode.env --network=docker_test gmchaincode
+    ```
 
 
-```
-setGlobals 2
-../bin/peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID mychannel --name basic --version 1.0 --package-id $PKGID --sequence 1
+###11、合约调试
 
-setGlobals 1
-../bin/peer lifecycle chaincode approveformyorg -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID mychannel --name basic --version 1.0 --package-id $PKGID --sequence 1
+   ```bash
+    peer chaincode invoke -n $CONTRACT_NAME -c '{"Args":["InitLedger"]}' -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel
+   ```
+###12、环境清理
 
-../bin/peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID mychannel --name basic --peerAddresses localhost:7051 --tlsRootCertFiles $PWD/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt --peerAddresses localhost:9051 --tlsRootCertFiles organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt --version 1.0 --sequence 1
-```
-
-This approves the chaincode definition for both orgs and commits it using org1. This should result in an output similar to:
-
-```
-2020-08-05 15:41:44.982 PDT [chaincodeCmd] ClientWait -> INFO 001 txid [6bdbe040b99a45cc90a23ec21f02ea5da7be8b70590eb04ff3323ef77fdedfc7] committed with status (VALID) at localhost:7051
-2020-08-05 15:41:44.983 PDT [chaincodeCmd] ClientWait -> INFO 002 txid [6bdbe040b99a45cc90a23ec21f02ea5da7be8b70590eb04ff3323ef77fdedfc7] committed with status (VALID) at localhost:9051
-```
-
-Now that the chaincode is deployed to the channel, and started as an external service, it can be used as normal.
-
-## Using the Asset-Transfer-Basic external chaincode
-
-切换到 `fabric-samples/test-network` 目录，执行下面的命令
-
-```
-peer chaincode invoke -n basic -c '{"Args":["InitLedger"]}' -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel
-peer chaincode invoke -n basic -c '{"Args":["ReadAsset","asset1"]}' -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel
-```
-
-## 清理网络,防止有残留数据
-```
-bash network.sh down
-docker system prune
-docker volume rm $(docker volume ls -qf dangling=true)
-```
+   ```bash
+    bash network.sh down
+    echo y｜docker system prune
+    docker volume rm $(docker volume ls -qf dangling=true)
+   ```
