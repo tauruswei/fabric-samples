@@ -1,6 +1,6 @@
 # 国密 chaincode as an external service
 
-###1、修改 core.yaml
+### 1、修改 core.yaml
 
   打开 `fabric-samples/config/core.yaml`修改 the field `externalBuilders` as the following:
 
