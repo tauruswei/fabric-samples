@@ -11,7 +11,7 @@
           name: external-sample-builder
    ```
 
-###2、修改 docker-compose-test-net.yaml
+### 2、修改 docker-compose-test-net.yaml
 
   修改 `test-network/docker/docker-compose-test-net.yaml`，容器 `peer0.org1.example.com`和 `peer0.org2.example.com`新增如下两行挂载:
 
@@ -20,14 +20,14 @@
     - ../../config/core.yaml:/etc/hyperledger/fabric/core.yaml
    ```
 
-###3、启动网络，并创建 channel
+### 3、启动网络，并创建 channel
 
    ```bash
     bash network.sh up createChannel
    ```
 
-###4、修改 connection.json(两种情况)
-- ####（1）如果是编译器启动 合约 服务，合约地址应该设置为本机的ip
+### 4、修改 connection.json(两种情况)
+- #### （1）如果是编译器启动 合约 服务，合约地址应该设置为本机的ip
 
     ```bash
     # 192.168.2.150 是我本机的 ip
@@ -38,7 +38,7 @@
     }
     ```
 
-- ####（2）如果是 docker 启动合约服务
+- #### （2）如果是 docker 启动合约服务
 
     ```bash
     # gm 是合约的名称
@@ -49,7 +49,7 @@
     }
     ```
 
-###5、修改 metadata.json
+### 5、修改 metadata.json
 
   ```
   # gm 是 chaincode 的名字
@@ -59,7 +59,7 @@
   }
   ```
 
-###6、重新打包
+### 6、重新打包
 
    ```bash
    export PKGNAME = gm.tgz
@@ -69,7 +69,7 @@
    tar cfz $PKGNAME metadata.json code.tar.gz
    ```
 
-###7、安装合约
+### 7、安装合约
 
    ```bash
     cd fabric-samples/test-network
@@ -82,7 +82,7 @@
     ../bin/peer lifecycle chaincode install ../asset-transfer-basic/chaincode-gm/$PKGNAME
    ```
 
-###8、设置环境变量
+### 8、设置环境变量
 
   安装合约时，控制台会输出 合约的 package id ，设置环境变零 PKGID
 
@@ -96,7 +96,7 @@
     export CONTRACT_NAME=gm
    ```
 
-###9、部署合约
+### 9、部署合约
 
    ```bash
     setGlobals 2
@@ -108,8 +108,8 @@
     peer lifecycle chaincode commit -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile $PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem --channelID mychannel --name $CONTRACT_NAME --peerAddresses localhost:7051 --tlsRootCertFiles $PWD/organizations/peerOrganizations/org1.example.com/peers/peer0.org1.example.com/tls/ca.crt --peerAddresses localhost:9051 --tlsRootCertFiles organizations/peerOrganizations/org2.example.com/peers/peer0.org2.example.com/tls/ca.crt --version 1.0 --sequence 1
    ```
 
-###10、启动合约服务（两种情况）
-####（1）编译器本地启动合约服务（便于调试）
+### 10、启动合约服务（两种情况）
+#### （1）编译器本地启动合约服务（便于调试）
 - 修改合约 main 函数中的环境变量
 
     ```bash
@@ -118,7 +118,7 @@
     ```
 
 - 启动服务
-####（2）docker 启动合约服务
+#### （2）docker 启动合约服务
 - 修改chaincode.env
 
     ```
@@ -146,12 +146,12 @@
     ```
 
 
-###11、合约调试
+### 11、合约调试
 
    ```bash
     peer chaincode invoke -n $CONTRACT_NAME -c '{"Args":["InitLedger"]}' -o localhost:7050 --ordererTLSHostnameOverride orderer.example.com --tls --cafile "$PWD/organizations/ordererOrganizations/example.com/orderers/orderer.example.com/msp/tlscacerts/tlsca.example.com-cert.pem" -C mychannel
    ```
-###12、环境清理
+### 12、环境清理
 
    ```bash
     bash network.sh down
